@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🀄️ 雀神榜</title>
+    <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/plugin/isoWeek.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/plugin/isoWeekYear.js"></script>
+    <script src="https://unpkg.com/chart.js"></script>
+    <style>
+        :root { --primary: #3b82f6; --bg: #f8fafc; --card: #ffffff; --text: #334155; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg); color: var(--text); margin: 0; padding: 20px 15px 80px 15px; max-width: 900px; margin: 0 auto; 
+        }
+        .container { display: flex; flex-direction: column; gap: 16px; }
+        .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; overflow: hidden; }
+        h2 { margin: 0 0 12px 0; color: #1e293b; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+        .app-title { text-align: center; margin: 5px 0 15px 0; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        #adminPanel { display: none; border-left: 4px solid var(--primary); }
+        textarea { width: 100%; height: 70px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; resize: vertical; margin-bottom: 10px; box-sizing: border-box; font-family: monospace; transition: 0.2s; background: #f8fafc; }
+        textarea:focus { outline: none; border-color: var(--primary); background: #fff; ring: 2px solid rgba(59, 130, 246, 0.2); }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: 500; }
+        .btn:active { transform: scale(0.96); }
+        .btn.outline { background: white; border: 1px solid #cbd5e1; color: var(--text); }
+        .btn.outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        .footer-bar { margin-top: 30px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding-top: 20px; border-top: 1px dashed #cbd5e1; }
+        .footer-btn { font-size: 0.8rem; color: #64748b; background: white; border: 1px solid #e2e8f0; padding: 6px 14px; border-radius: 20px; transition: 0.2s; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .footer-info { font-size: 0.75rem; color: #94a3b8; display: flex; align-items: center; background: #f1f5f9; padding: 4px 10px; border-radius: 12px; }
+
+        .time-nav { display: flex; align-items: center; background: #f8fafc; padding: 4px; border-radius: 10px; gap: 6px; border: 1px solid #e2e8f0; justify-content: space-between; }
+        .current-date-display { font-size: 0.85rem; font-weight: 700; color: var(--primary); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-btn { background: transparent; border: none; cursor: pointer; padding: 4px 8px; color: #64748b; font-weight: bold; font-size: 1.1rem; border-radius: 6px; flex-shrink: 0; }
+        .nav-btn:hover { background: #e2e8f0; color: var(--primary); }
+        .filter-select { appearance: none; -webkit-appearance: none; background-color: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px 24px 5px 10px; font-size: 0.85rem; color: #475569; font-weight: 600; cursor: pointer; outline: none; flex-shrink: 0; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 4px center; background-size: 14px; transition: all 0.2s; }
+
+        .chart-container { position: relative; height: 280px; width: 100%; margin-top: 20px; }
+        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px 10px 16px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 5px; min-width: 600px; }
+        th { text-align: center; color: #94a3b8; font-weight: 600; font-size: 0.8rem; padding: 10px 6px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; background: var(--card); }
+        td { padding: 14px 6px; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; vertical-align: middle; text-align: center; white-space: nowrap; background: var(--card); }
+        
+        th:nth-child(1), td:nth-child(1) { 
+            text-align: left; white-space: normal; max-width: 120px; min-width: 90px;
+            position: sticky; left: 0; z-index: 2; 
+            background-color: var(--card);
+            box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+            border-right: 1px solid #f1f5f9;
+        }
+        th:nth-child(6), td:nth-child(6) { text-align: left; }
+        
+        .score { font-family: 'SF Mono', 'Roboto Mono', monospace; font-weight: 700; font-size: 0.95rem; }
+        .pos { color: #ef4444; }
+        .neg { color: #10b981; }
+        .clickable-name { cursor: pointer; color: var(--primary); font-weight: 600; display: inline-block; margin-right: 4px; transition: 0.2s; }
+        .clickable-name:hover { opacity: 0.8; text-decoration: underline; }
+
+        /* 徽章 */
+        .s-tag { display: inline-block; position: relative; overflow: hidden; font-size: 0.65rem; line-height: 1; padding: 3px 6px; border-radius: 4px; color: #fff; font-weight: 800; box-shadow: 0 1px 2px rgba(0,0,0,0.1); vertical-align: middle; transform: skewX(-10deg); z-index: 1; margin-top: 2px; margin-right: 4px; }
+        .s-tag span { display: inline-block; transform: skewX(10deg); position: relative; z-index: 2; }
+        .s-static::after { display: none !important; }
+        .s-static { animation: none !important; box-shadow: none !important; opacity: 0.9; margin-left: 0; }
+        
+        .s-lv2 { background: linear-gradient(135deg, #94a3b8, #64748b); border-bottom: 2px solid #334155; }
+        .s-lv3 { background: linear-gradient(135deg, #f59e0b, #d97706); border-bottom: 2px solid #b45309; }
+        .s-lv4 { background: linear-gradient(135deg, #fb923c, #ea580c); border-bottom: 2px solid #c2410c; }
+        .s-lv5 { background: linear-gradient(135deg, #f87171, #dc2626); border-bottom: 2px solid #991b1b; }
+        .s-lv6 { background: linear-gradient(135deg, #a78bfa, #7c3aed); border-bottom: 2px solid #5b21b6; }
+        .s-god { background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%); border-bottom: 2px solid #78350f; box-shadow: 0 0 10px rgba(251, 191, 36, 0.8); animation: borderPulse 1.5s infinite alternate; z-index: 5; }
+        
+        .l-lv2 { background: linear-gradient(135deg, #e5e7eb, #9ca3af); border-bottom: 2px solid #6b7280; color: #374151; }
+        .l-lv3 { background: linear-gradient(135deg, #86efac, #22c55e); border-bottom: 2px solid #15803d; }
+        .l-lv4 { background: linear-gradient(135deg, #67e8f9, #06b6d4); border-bottom: 2px solid #0e7490; }
+        .l-lv5 { background: linear-gradient(135deg, #4c1d95, #2e1065); border-bottom: 2px solid #0f172a; }
+        .l-god { background: #000; border-bottom: 2px solid #dc2626; color: #ef4444; animation: glitch 0.5s infinite; }
+
+        .tag-god { background: linear-gradient(135deg, #fcd34d, #f59e0b); border-bottom: 2px solid #b45309; color: #fff; }
+        .tag-noob { background: linear-gradient(135deg, #10b981, #059669); border-bottom: 2px solid #047857; color: #fff; }
+        .tag-worker { background: linear-gradient(135deg, #3b82f6, #2563eb); border-bottom: 2px solid #1e40af; color: #fff; }
+        .tag-fish { background: linear-gradient(135deg, #94a3b8, #64748b); border-bottom: 2px solid #475569; color: #fff; }
+
+        .s-lv3::after, .s-lv4::after, .s-lv5::after, .s-lv6::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%); transform: skewX(-20deg); z-index: 1; animation: sheen 3s infinite; }
+        .s-god::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%); transform: skewX(-20deg); z-index: 1; animation: sheen 1.2s infinite; }
+        @keyframes borderPulse { 0% { box-shadow: 0 0 4px rgba(251, 191, 36, 0.6); } 100% { box-shadow: 0 0 14px rgba(251, 191, 36, 1); } }
+        @keyframes glitch { 0% { transform: skewX(-10deg) translate(0); } 20% { transform: skewX(-10deg) translate(-2px, 2px); } 80% { transform: skewX(-10deg) translate(2px, -2px); } 100% { transform: skewX(-10deg) translate(0); } }
+        @keyframes sheen { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
+
+        .hist-rec { font-size: 0.75rem; color: #64748b; margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+        .record-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+        .record-meta { font-size: 0.85rem; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .del-record-btn { background: transparent; border: none; cursor: pointer; color: #cbd5e1; font-size: 1.1rem; padding: 0 5px; margin-left: 5px; transition: 0.2s; }
+        .del-record-btn:hover { color: #ef4444; transform: scale(1.1); }
+        .action-btn { background: transparent; border: none; cursor: pointer; color: #cbd5e1; font-size: 1.1rem; padding: 0 5px; margin-left: 5px; transition: 0.2s; }
+        .action-btn:hover { transform: scale(1.1); }
+        .edit-btn:hover { color: var(--primary); }
+        
+        .player-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .p-tag { background: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .pagination { display: flex; justify-content: center; gap: 10px; align-items: center; margin-top: 15px; }
+        .page-input { width: 36px; text-align: center; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+        .page-total { color: #64748b; font-size: 0.9rem; }
+
+        .tag-offline { background: #f3e8ff; color: #9333ea; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid #e9d5ff; display: inline-flex; align-items: center; gap: 3px; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); }
+        .modal-box { background: white; padding: 24px; border-radius: 20px; width: 90%; max-width: 420px; box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25); animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box; }
+        @keyframes modalPop { 0% { transform: scale(0.95) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .modal-hero { text-align: center; margin-bottom: 20px; }
+        .modal-icon { font-size: 3rem; margin-bottom: 10px; display: inline-block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+        .modal-title { font-size: 1.2rem; font-weight: 800; color: #1e293b; margin: 0; }
+        .modal-desc { color: #64748b; font-size: 0.9rem; margin-top: 5px; line-height: 1.4; word-break: break-all; }
+        .modal-input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; margin-bottom: 20px; box-sizing: border-box; transition: 0.2s; background: #f8fafc; }
+        .modal-input:focus { border-color: var(--primary); outline: none; background: #fff; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .modal-btns { display: flex; gap: 10px; }
+        .alias-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .alias-row input { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; }
+        .del-btn { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }
+
+        .manual-row { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+        .manual-row input { padding: 10px 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 0; }
+        .manual-row .name { flex: 5; }
+        .manual-row .score { flex: 3; text-align: center; font-family: monospace; font-weight: bold; }
+        .manual-row .del-btn { width: 34px; height: 34px; flex-shrink: 0; }
+        .sum-check { text-align: center; margin-top: 15px; font-size: 0.9rem; color: #64748b; font-weight: 600; padding: 8px; background: #f1f5f9; border-radius: 8px; }
+        .sum-check.error { color: #ef4444; background: #fee2e2; }
+        .sum-check.ok { color: #10b981; background: #dcfce7; }
+
+        /* 🔥 v8.18 紧凑布局 CSS 🔥 */
+        .stat-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+        
+        .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 4px; border-radius: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 65px; }
+        .stat-box.clickable { cursor: pointer; transition: 0.2s; border-color: #bfdbfe; background: #eff6ff; }
+        .stat-box.clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-color: var(--primary); }
+        
+        .stat-label { font-size: 0.65rem; color: #64748b; margin-bottom: 2px; font-weight: 600; white-space: normal; line-height: 1.1; }
+        .stat-val { font-size: 1rem; font-weight: 800; color: #334155; font-family: monospace; }
+        .stat-val.pos { color: #ef4444; }
+        .stat-val.neg { color: #10b981; }
+
+        .divider { border-top: 1px dashed #cbd5e1; margin-top: 12px; }
+        .divider-text { text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 700; margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+
+        .box-god { background: #fffbeb; border-color: #fcd34d; } .box-god .honor-val { color: #d97706; }
+        .box-noob { background: #ecfdf5; border-color: #6ee7b7; } .box-noob .honor-val { color: #059669; }
+        .box-worker { background: #eff6ff; border-color: #93c5fd; } .box-worker .honor-val { color: #2563eb; }
+        .box-fish { background: #f1f5f9; border-color: #cbd5e1; } .box-fish .honor-val { color: #475569; }
+        .box-bigwin { background: #fef2f2; border-color: #fca5a5; } .box-bigwin .honor-val { color: #dc2626; }
+        .box-bigloss { background: #f0fdfa; border-color: #5eead4; } .box-bigloss .honor-val { color: #0f766e; }
+
+        .threshold-config { border-top: 1px dashed #cbd5e1; margin-top: 15px; padding-top: 10px; display: none; }
+        .config-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 0.8rem; color: #475569; }
+        .config-input { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.8rem; }
+        
+        .match-card-header { text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1; }
+        .match-date { font-weight: 700; color: var(--primary); font-size: 1.1rem; }
+        .match-room { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
+        .match-player-list { display: flex; flex-direction: column; gap: 8px; }
+        .match-player-row { display: flex; justify-content: space-between; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; font-weight: 600; }
+        .match-player-row.focus { border: 2px solid var(--primary); background: #eff6ff; }
+    </style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="margin-top:10px; color:#64748b; font-weight:500">正在同步数据...</div>
+</div>
+
+<div class="container">
+    <div id="error-banner"></div>
+    <h1 class="app-title">雀神榜</h1>
+
+    <div class="card" id="adminPanel">
+        <h2 style="font-size:1rem; margin-bottom:10px; opacity:0.8">🛠️ 管理员操作</h2>
+        <textarea id="rawInput" placeholder="在此粘贴战绩文本..."></textarea>
+        <div class="btn-toolbar">
+            <button class="btn" id="uploadBtn" onclick="tryAction(safeHandleImport)">📥 识别并导入</button>
+            <button class="btn" onclick="tryAction(openManualAddModal)">✍️ 手动录入</button>
+            <button class="btn outline" onclick="tryAction(toggleAliasModal)">👥 设置别名</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <h2>战绩走势</h2>
+            <div class="time-nav">
+                <button class="nav-btn" onclick="changeDate(-1)">❮</button>
+                <span id="dateDisplay" class="current-date-display">...</span>
+                <button class="nav-btn" onclick="changeDate(1)">❯</button>
+                <select id="timeFilterSelect" class="filter-select" onchange="onFilterChange(this.value)">
+                    <option value="day">📅 日</option>
+                    <option value="week" selected>📅 周</option>
+                    <option value="month">📅 月</option>
+                    <option value="year">📅 年</option>
+                    <option value="all">♾️ 全</option>
+                </select>
+            </div>
+        </div>
+        <div id="statsTable"></div>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>历史明细 <span id="totalCount" style="font-size:0.85rem; font-weight:normal; color:#64748b"></span></h2>
+        <div id="historyList"></div>
+        <div class="pagination">
+            <button class="btn outline" onclick="changePage(-1)">上一页</button>
+            <div>
+                <input type="number" id="pageInput" class="page-input" value="1" onchange="jumpToPage()" onkeyup="if(event.key==='Enter') jumpToPage()">
+                <span class="page-total"> / <span id="totalPagesText">1</span> 页</span>
+            </div>
+            <button class="btn outline" onclick="changePage(1)">下一页</button>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <div id="loginArea">
+            <button class="footer-btn" onclick="openLoginModal('admin')">🔑 管理员登录</button>
+        </div>
+        <div id="adminControls" style="display:none; gap:10px">
+            <span class="footer-info">👮 管理员模式</span>
+            <button class="footer-btn" onclick="doLogout()" style="color:#ef4444; border-color:#fca5a5">退出</button>
+        </div>
+    </div>
+</div>
+
+<div id="manualAddModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-hero">
+            <h3 class="modal-title" id="manualModalTitle">✍️ 手动录入战绩</h3>
+        </div>
+        <input type="hidden" id="editRecordId">
+        <div style="margin-bottom:15px">
+            <label style="font-size:0.85rem; color:#64748b; font-weight:600">比赛时间</label>
+            <input type="datetime-local" id="manualDate" class="modal-input" style="margin-bottom:5px">
+        </div>
+        <div style="margin-bottom:15px">
+            <label style="font-size:0.85rem; color:#64748b; font-weight:600">房间信息</label>
+            <input type="text" id="manualRoomId" class="modal-input" placeholder="例如: 123456 或 Manual" value="Manual">
+        </div>
+        <div id="manualPlayerList"></div>
+        <button class="btn outline" style="width:100%; border-style:dashed; margin-top:10px" onclick="addManualRow()">+ 添加玩家</button>
+        <div id="manualSumCheck" class="sum-check ok">当前总分: 0</div>
+        <div class="modal-btns" style="margin-top:20px">
+            <button class="btn" style="flex:1" onclick="submitManualAdd()">保存</button>
+            <button class="btn outline" style="flex:1" onclick="document.getElementById('manualAddModal').style.display='none'">取消</button>
+        </div>
+    </div>
+    <datalist id="playerOptions"></datalist>
+</div>
+
+<div id="playerDetailModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 380px;"> <div style="text-align:center; position:relative">
+            <button style="position:absolute; right:0; top:-10px; background:none; border:none; font-size:1.2rem; color:#94a3b8; cursor:pointer" onclick="closePlayerDetail()">✕</button>
+            <div id="pd-name" style="font-size:1.4rem; font-weight:800; color:#1e293b; margin-bottom:5px">Player</div>
+            <div id="pd-total" style="font-size:1rem; color:#64748b; font-family:monospace;">Total: 0</div>
+        </div>
+
+        <div class="stat-grid-2">
+            <div class="stat-box clickable" onclick="openMatchDetail('win')">
+                <span class="stat-label">🏆 最高单局</span>
+                <span id="pd-max-win" class="stat-val pos">0</span>
+            </div>
+            <div class="stat-box clickable" onclick="openMatchDetail('loss')">
+                <span class="stat-label">☠️ 最惨单局</span>
+                <span id="pd-max-loss" class="stat-val neg">0</span>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="stat-grid-3">
+            <div class="stat-box">
+                <span class="stat-label">🌟 大赢家</span>
+                <span id="pd-big-win" class="stat-val">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label" id="lbl-cool">😍 爽到了</span>
+                <span id="pd-cool" class="stat-val">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label" id="lbl-fish">🐟 摸鱼</span>
+                <span id="pd-fish" class="stat-val">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">🤡 大冤种</span>
+                <span id="pd-big-loss" class="stat-val">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label" id="lbl-bad">😭 输麻了</span>
+                <span id="pd-bad" class="stat-val">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">🔥 生涯参战率</span>
+                <span id="pd-rate" class="stat-val">0%</span>
+            </div>
+        </div>
+        
+        <div class="divider-text">📅 月度头衔 (独占榜首次数)</div>
+        <div class="stat-grid-3">
+            <div class="stat-box box-god">
+                <span class="stat-label" style="color:#b45309">🏆 你是我的神</span>
+                <span id="pd-h-god" class="stat-val honor-val">0次</span>
+            </div>
+            <div class="stat-box box-bigwin">
+                <span class="stat-label" style="color:#dc2626">💰 把你的钱给我交了</span>
+                <span id="pd-h-bigwin" class="stat-val honor-val">0次</span>
+            </div>
+            <div class="stat-box box-worker">
+                <span class="stat-label" style="color:#1d4ed8">👷 劳模</span>
+                <span id="pd-h-worker" class="stat-val honor-val">0次</span>
+            </div>
+            <div class="stat-box box-noob">
+                <span class="stat-label" style="color:#047857">🥗 菜就多练</span>
+                <span id="pd-h-noob" class="stat-val honor-val">0次</span>
+            </div>
+            <div class="stat-box box-bigloss">
+                <span class="stat-label" style="color:#0f766e">💸 请拿走我的底裤</span>
+                <span id="pd-h-bigloss" class="stat-val honor-val">0次</span>
+            </div>
+            <div class="stat-box box-fish">
+                <span class="stat-label" style="color:#334155">🐟 摸鱼王</span>
+                <span id="pd-h-fish" class="stat-val honor-val">0次</span>
+            </div>
+        </div>
+
+        <div id="pd-admin-config" class="threshold-config">
+            <div style="font-size:0.8rem; font-weight:700; color:#94a3b8; margin-bottom:6px; text-align:center">⚙️ 统计阈值设置 (云端同步)</div>
+            <div class="config-row">
+                <span>😍 爽 (>X)</span> <input type="number" id="cfg-cool" class="config-input" value="100">
+            </div>
+            <div class="config-row">
+                <span>😭 惨 (<-X)</span> <input type="number" id="cfg-bad" class="config-input" value="100">
+            </div>
+            <div class="config-row">
+                <span>🐟 鱼 (|x|<X)</span> <input type="number" id="cfg-fish" class="config-input" value="5">
+            </div>
+            <button class="btn" style="width:100%; margin-top:8px; font-size:0.8rem" onclick="saveThresholds()">💾 保存设置</button>
+        </div>
+    </div>
+</div>
+
+<div id="matchDetailModal" class="modal-overlay" style="z-index: 250;">
+    <div class="modal-box">
+        <div class="match-card-header">
+            <div id="md-date" class="match-date">YYYY-MM-DD</div>
+            <div id="md-room" class="match-room">Room: 123</div>
+        </div>
+        <div id="md-list" class="match-player-list"></div>
+        <button class="btn outline" style="width:100%; margin-top:15px" onclick="document.getElementById('matchDetailModal').style.display='none'">关闭</button>
+    </div>
+</div>
+
+<div id="loginModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-hero">
+            <div class="modal-icon" id="loginIcon">🔐</div>
+            <div class="modal-title" id="loginTitle">管理员登录</div>
+            <div class="modal-desc" id="loginDesc">请输入系统管理密码</div>
+        </div>
+        <input type="password" id="loginInput" class="modal-input" placeholder="请输入密码" onkeyup="if(event.key==='Enter') submitLogin()">
+        <div class="modal-btns">
+            <button class="btn" style="flex:1; padding:12px;" onclick="submitLogin()">进入</button>
+            <button class="btn outline" style="flex:1; padding:12px;" onclick="closeLoginModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="customAlert" class="modal-overlay" style="z-index: 300;">
+    <div class="modal-box" style="text-align:center">
+        <div class="modal-hero">
+            <div class="modal-icon" id="alertIcon"></div>
+            <div class="modal-title" id="alertTitle"></div>
+            <div class="modal-desc" id="alertBody"></div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn" style="width:100%" onclick="closeCustomAlert()">我知道了</button>
+        </div>
+    </div>
+</div>
+
+<div id="aliasModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:480px">
+        <div class="modal-title">合并玩家</div>
+        <div id="aliasList"></div>
+        <button class="btn outline" style="width:100%; margin-top:10px; border-style:dashed" onclick="addAliasRow()">+ 添加一行</button>
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn" style="flex:1" onclick="saveAliases()">保存</button>
+            <button class="btn outline" style="flex:1" onclick="toggleAliasModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    console.log('Ver: v8.18');
+    let globalRecords = [];
+    let playerAliases = {}; 
+    let currentFilter = 'week'; 
+    let anchorDate = dayjs();
+    let currentPage = 1;
+    let pageSize = 10;
+    let myChart = null;
+    let globalActiveStats = {}; 
+    let periodStats = {};       
+    let currentPlayerDetailData = { maxWinRecord: null, maxLossRecord: null, playerName: '' };
+    let thresholds = { cool: 100, bad: 100, fish: 5 };
+
+    window.addEventListener('load', () => {
+        if (window.dayjs_plugin_isoWeek) dayjs.extend(window.dayjs_plugin_isoWeek);
+        if (window.dayjs_plugin_isoWeekYear) dayjs.extend(window.dayjs_plugin_isoWeekYear);
+        
+        checkAuthUI();
+        updateDateDisplay();
+        initData(); 
+        setInterval(() => initData(true), 600000); 
+    });
+
+    // ... (手动录入/编辑逻辑保持不变) ...
+    function openManualAddModal(editRecord = null) {
+        const list = document.getElementById('manualPlayerList');
+        list.innerHTML = '';
+        document.getElementById('editRecordId').value = '';
+        const datalist = document.getElementById('playerOptions');
+        datalist.innerHTML = '';
+        const allNames = new Set();
+        globalRecords.forEach(r => r.players.forEach(p => allNames.add(getRealName(p.name))));
+        allNames.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n;
+            datalist.appendChild(opt);
+        });
+
+        if (editRecord) {
+            document.getElementById('manualModalTitle').innerText = "✏️ 编辑战绩";
+            document.getElementById('editRecordId').value = editRecord.id;
+            document.getElementById('manualDate').value = dayjs(editRecord.play_date).format('YYYY-MM-DDTHH:mm');
+            document.getElementById('manualRoomId').value = editRecord.room_id || 'Manual';
+            editRecord.players.forEach(p => addManualRow(p.name, p.score));
+        } else {
+            document.getElementById('manualModalTitle').innerText = "✍️ 手动录入战绩";
+            document.getElementById('manualDate').value = dayjs().format('YYYY-MM-DDTHH:mm');
+            document.getElementById('manualRoomId').value = 'Manual';
+            for(let i=0; i<4; i++) addManualRow();
+        }
+        updateManualSum();
+        document.getElementById('manualAddModal').style.display = 'flex';
+    }
+
+    function addManualRow(nameVal = '', scoreVal = '') {
+        const div = document.createElement('div');
+        div.className = 'manual-row';
+        div.innerHTML = `
+            <input class="name" placeholder="玩家昵称" list="playerOptions" value="${nameVal}">
+            <input class="score" type="number" placeholder="分数" oninput="updateManualSum()" value="${scoreVal}">
+            <button class="del-btn" onclick="this.parentElement.remove();updateManualSum()">✕</button>
+        `;
+        document.getElementById('manualPlayerList').appendChild(div);
+    }
+
+    function updateManualSum() {
+        const scores = document.querySelectorAll('#manualPlayerList .score');
+        let sum = 0;
+        scores.forEach(input => sum += (parseInt(input.value) || 0));
+        const checkEl = document.getElementById('manualSumCheck');
+        checkEl.innerText = `当前总分: ${sum}`;
+        checkEl.className = sum === 0 ? 'sum-check ok' : 'sum-check error';
+    }
+
+    async function submitManualAdd() {
+        const dateVal = document.getElementById('manualDate').value;
+        const roomIdVal = document.getElementById('manualRoomId').value.trim() || 'Manual';
+        const editId = document.getElementById('editRecordId').value;
+
+        if (!dateVal) return showAlert("错误", "请选择日期", "⚠️");
+        
+        const rows = document.querySelectorAll('#manualPlayerList .manual-row');
+        const players = [];
+        let sum = 0;
+
+        for (let row of rows) {
+            const name = row.querySelector('.name').value.trim();
+            const scoreStr = row.querySelector('.score').value.trim();
+            if (!name) continue; 
+            if (!scoreStr) return showAlert("错误", "请输入分数", "⚠️");
+            const score = parseInt(scoreStr);
+            sum += score;
+            players.push({ name, score });
+        }
+
+        if (players.length < 2) return showAlert("错误", "至少需要2名玩家", "⚠️");
+        if (sum !== 0) {
+            if (!confirm(`⚠️ 当前总分不为 0 (总分 ${sum})，确定要提交吗？`)) return;
+        }
+
+        const payload = {
+            game_name: "Mahjong",
+            play_date: new Date(dateVal).toISOString(),
+            room_id: roomIdVal, 
+            room_info: editId ? "管理员编辑" : "管理员手动录入",
+            players: players
+        };
+
+        try {
+            if (editId) {
+                await apiCall(`/records/${editId}`, 'PUT', payload);
+                showAlert("成功", "战绩已更新", "✅");
+            } else {
+                await apiCall('/records', 'POST', payload);
+                showAlert("成功", "战绩添加成功", "✅");
+            }
+            document.getElementById('manualAddModal').style.display = 'none';
+            await loadRecords(); 
+            refreshUI();
+        } catch(e) {
+            showAlert("操作失败", "服务器接口异常: " + e.message, "❌");
+        }
+    }
+
+    function calculateMonthlyBadges(targetName) {
+        const monthGroups = {};
+        globalRecords.forEach(rec => {
+            const m = dayjs(rec.play_date).format('YYYY-MM');
+            if (!monthGroups[m]) monthGroups[m] = [];
+            monthGroups[m].push(rec);
+        });
+
+        const badges = { god: 0, noob: 0, worker: 0, fish: 0, bigwin: 0, bigloss: 0 };
+
+        for (const [month, records] of Object.entries(monthGroups)) {
+            const totalGamesInMonth = records.length;
+            if (totalGamesInMonth === 0) continue;
+
+            const pStats = {};
+            records.forEach(rec => {
+                rec.players.forEach(p => {
+                    const name = getRealName(p.name);
+                    if (!pStats[name]) pStats[name] = { wins: 0, count: 0, score: 0 };
+                    pStats[name].count++;
+                    pStats[name].score += p.score;
+                    if (p.score > 0) pStats[name].wins++;
+                });
+            });
+
+            let maxWR = -1, minWR = 101, maxPR = -1, minPR = 101, maxScore = -999999, minScore = 999999;
+            for (const [name, s] of Object.entries(pStats)) {
+                const wr = (s.wins / s.count) * 100;
+                const pr = (s.count / totalGamesInMonth) * 100;
+                const sc = s.score;
+
+                if (wr > maxWR) maxWR = wr;
+                if (wr < minWR) minWR = wr;
+                if (pr > maxPR) maxPR = pr;
+                if (pr < minPR) minPR = pr;
+                if (sc > maxScore) maxScore = sc;
+                if (sc < minScore) minScore = sc;
+            }
+
+            let counts = { maxWR: 0, minWR: 0, maxPR: 0, minPR: 0, maxScore: 0, minScore: 0 };
+            for (const [name, s] of Object.entries(pStats)) {
+                const wr = (s.wins / s.count) * 100;
+                const pr = (s.count / totalGamesInMonth) * 100;
+                const sc = s.score;
+
+                if (Math.abs(wr - maxWR) < 0.01) counts.maxWR++;
+                if (Math.abs(wr - minWR) < 0.01) counts.minWR++;
+                if (Math.abs(pr - maxPR) < 0.01) counts.maxPR++;
+                if (Math.abs(pr - minPR) < 0.01) counts.minPR++;
+                if (sc === maxScore) counts.maxScore++;
+                if (sc === minScore) counts.minScore++;
+            }
+
+            const myStat = pStats[targetName];
+            if (myStat) {
+                const myWR = (myStat.wins / myStat.count) * 100;
+                const myPR = (myStat.count / totalGamesInMonth) * 100;
+                const myScore = myStat.score;
+
+                if (counts.maxWR === 1 && Math.abs(myWR - maxWR) < 0.01) badges.god++;
+                if (counts.minWR === 1 && Math.abs(myWR - minWR) < 0.01) badges.noob++;
+                if (counts.maxPR === 1 && Math.abs(myPR - maxPR) < 0.01) badges.worker++;
+                if (counts.minPR === 1 && Math.abs(myPR - minPR) < 0.01) badges.fish++;
+                if (counts.maxScore === 1 && myScore === maxScore) badges.bigwin++;
+                if (counts.minScore === 1 && myScore === minScore) badges.bigloss++;
+            }
+        }
+        return badges;
+    }
+
+    function showPlayerDetails(name) {
+        document.getElementById('pd-name').innerText = name;
+        document.getElementById('lbl-cool').innerText = `😍 爽到了 (>${thresholds.cool})`;
+        document.getElementById('lbl-bad').innerText = `😭 输麻了 (<${-thresholds.bad})`;
+        document.getElementById('lbl-fish').innerText = `🐟 摸鱼 (|x|<${thresholds.fish})`;
+
+        const stats = { maxWin: 0, maxLoss: 0, bigWinCount: 0, bigLossCount: 0, coolCount: 0, badCount: 0, fishCount: 0, totalScore: 0, gameCount: 0 };
+        currentPlayerDetailData = { maxWinRecord: null, maxLossRecord: null, playerName: name };
+
+        globalRecords.forEach(rec => {
+            const pRecord = rec.players.find(p => getRealName(p.name) === name);
+            if (!pRecord) return;
+            const score = pRecord.score;
+            stats.totalScore += score;
+            stats.gameCount++; 
+
+            if (score > stats.maxWin) { stats.maxWin = score; currentPlayerDetailData.maxWinRecord = rec; }
+            if (score < stats.maxLoss) { stats.maxLoss = score; currentPlayerDetailData.maxLossRecord = rec; }
+
+            if (score >= thresholds.cool) stats.coolCount++;
+            if (score <= -thresholds.bad) stats.badCount++;
+            if (Math.abs(score) < thresholds.fish) stats.fishCount++;
+
+            if (score > 0) {
+                if (!rec.players.some(p => getRealName(p.name) !== name && p.score > 0)) stats.bigWinCount++;
+            }
+            if (score < 0) {
+                if (!rec.players.some(p => getRealName(p.name) !== name && p.score < 0)) stats.bigLossCount++;
+            }
+        });
+
+        const totalEl = document.getElementById('pd-total');
+        totalEl.innerText = `生涯总分: ${stats.totalScore > 0 ? '+' : ''}${stats.totalScore}`;
+        totalEl.style.color = stats.totalScore > 0 ? '#ef4444' : (stats.totalScore < 0 ? '#10b981' : '#64748b');
+
+        document.getElementById('pd-max-win').innerText = `+${stats.maxWin}`;
+        document.getElementById('pd-max-loss').innerText = stats.maxLoss;
+        document.getElementById('pd-big-win').innerText = stats.bigWinCount + '次';
+        document.getElementById('pd-big-loss').innerText = stats.bigLossCount + '次';
+        document.getElementById('pd-cool').innerText = stats.coolCount + '次';
+        document.getElementById('pd-bad').innerText = stats.badCount + '次';
+        document.getElementById('pd-fish').innerText = stats.fishCount + '次';
+        
+        const totalGames = globalRecords.length;
+        const rate = totalGames > 0 ? ((stats.gameCount / totalGames) * 100).toFixed(1) + '%' : '0%';
+        document.getElementById('pd-rate').innerText = rate;
+
+        const monthlyBadges = calculateMonthlyBadges(name);
+        document.getElementById('pd-h-god').innerText = monthlyBadges.god + '次';
+        document.getElementById('pd-h-noob').innerText = monthlyBadges.noob + '次';
+        document.getElementById('pd-h-worker').innerText = monthlyBadges.worker + '次';
+        document.getElementById('pd-h-fish').innerText = monthlyBadges.fish + '次';
+        document.getElementById('pd-h-bigwin').innerText = monthlyBadges.bigwin + '次';
+        document.getElementById('pd-h-bigloss').innerText = monthlyBadges.bigloss + '次';
+
+        document.getElementById('cfg-cool').value = thresholds.cool;
+        document.getElementById('cfg-bad').value = thresholds.bad;
+        document.getElementById('cfg-fish').value = thresholds.fish;
+
+        document.getElementById('playerDetailModal').style.display = 'flex';
+    }
+
+    function openEditRecord(index) {
+        const record = globalRecords[index]; 
+        if (!record) return showAlert("错误", "找不到该战绩", "❌");
+        openManualAddModal(record);
+    }
+
+    function openMatchDetail(type) {
+        const rec = type === 'win' ? currentPlayerDetailData.maxWinRecord : currentPlayerDetailData.maxLossRecord;
+        if (!rec) return showAlert("无数据", "暂无该项记录", "📭");
+
+        document.getElementById('md-date').innerText = dayjs(rec.play_date).format('YYYY年MM月DD日 HH:mm');
+        const roomDisplay = rec.room_id === 'Manual' ? '🏟️ 线下对局' : (rec.room_id !== 'unknown' ? `房间号: ${rec.room_id}` : '房间号: 未知');
+        document.getElementById('md-room').innerText = roomDisplay;
+        
+        const listEl = document.getElementById('md-list');
+        listEl.innerHTML = '';
+        const sortedPlayers = [...rec.players].sort((a, b) => b.score - a.score);
+        sortedPlayers.forEach(p => {
+            const realName = getRealName(p.name);
+            const isFocus = realName === currentPlayerDetailData.playerName;
+            const scoreClass = p.score > 0 ? 'pos' : (p.score < 0 ? 'neg' : '');
+            const div = document.createElement('div');
+            div.className = `match-player-row ${isFocus ? 'focus' : ''}`;
+            div.innerHTML = `<span>${escapeHtml(realName)}</span><span class="${scoreClass}">${p.score > 0 ? '+' : ''}${p.score}</span>`;
+            listEl.appendChild(div);
+        });
+        document.getElementById('matchDetailModal').style.display = 'flex';
+    }
+    function closePlayerDetail() { document.getElementById('playerDetailModal').style.display = 'none'; }
+
+    async function saveThresholds() {
+        const cool = parseInt(document.getElementById('cfg-cool').value) || 100;
+        const bad = parseInt(document.getElementById('cfg-bad').value) || 100;
+        const fish = parseInt(document.getElementById('cfg-fish').value) || 5;
+        thresholds = { cool, bad, fish };
+        const payload = { ...playerAliases };
+        payload['__META_THRESHOLDS__'] = JSON.stringify(thresholds);
+        try {
+            await apiCall('/aliases', 'POST', payload);
+            showAlert("保存成功", "配置已同步", "✅");
+            showPlayerDetails(document.getElementById('pd-name').innerText);
+        } catch (e) { showAlert("保存失败", e.message, "❌"); }
+    }
+
+    function onFilterChange(val) {
+        anchorDate = dayjs();
+        currentFilter = val;
+        updateDateDisplay();
+        refreshUI();
+    }
+
+    function showAlert(title, msg, icon='ℹ️') {
+        document.getElementById('alertIcon').innerText = icon;
+        document.getElementById('alertTitle').innerText = title;
+        document.getElementById('alertBody').innerText = msg;
+        document.getElementById('customAlert').style.display = 'flex';
+    }
+    function closeCustomAlert() { document.getElementById('customAlert').style.display = 'none'; }
+
+    function checkAuthUI() {
+        const isAdmin = !!localStorage.getItem('mahjong_auth_token');
+        document.getElementById('loginArea').style.display = !isAdmin ? 'block' : 'none';
+        document.getElementById('adminControls').style.display = isAdmin ? 'flex' : 'none';
+        document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
+        document.getElementById('pd-admin-config').style.display = isAdmin ? 'block' : 'none';
+    }
+
+    function openLoginModal() {
+        document.getElementById('loginInput').value = '';
+        document.getElementById('loginModal').style.display = 'flex';
+        document.getElementById('loginInput').focus();
+    }
+    function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+    async function submitLogin() {
+        const input = document.getElementById('loginInput').value;
+        if (!input) return;
+        try {
+            const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': input } });
+            if (res.ok) { 
+                localStorage.setItem('mahjong_auth_token', input);
+                closeLoginModal(); checkAuthUI(); refreshUI();
+            } else { showAlert("登录失败", "密码错误", "❌"); }
+        } catch (e) { showAlert("错误", "验证超时", "⚠️"); }
+    }
+
+    function doLogout() { localStorage.removeItem('mahjong_auth_token'); checkAuthUI(); refreshUI(); }
+
+    async function tryAction(actionCallback) {
+        const savedToken = localStorage.getItem('mahjong_auth_token');
+        if (savedToken) { await actionCallback(); return; }
+        showAlert("权限不足", "请先登录管理员账号", "🔐");
+    }
+
+    async function apiCall(endpoint, method = 'GET', body = null) {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('mahjong_auth_token');
+        if (token) headers['x-admin-token'] = token;
+        const res = await fetch(`/api${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
+        if (res.status === 401) { if(token) { localStorage.removeItem('mahjong_auth_token'); checkAuthUI(); throw new Error("AUTH_FAILED"); } }
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") === -1) {
+            const text = await res.text();
+            throw new Error("服务器接口异常 (非JSON响应)"); 
+        }
+        if (!res.ok) { 
+            if (res.status === 409) throw new Error("DUPLICATE"); 
+            const json = await res.json(); 
+            throw new Error(json.error || '请求失败'); 
+        }
+        return res.json();
+    }
+
+    async function initData(isSilent = false) {
+        if (!isSilent) showLoading(true);
+        try { 
+            await Promise.all([loadRecords(), loadAliases()]); 
+            refreshUI(); 
+        } catch (e) { 
+            if (!isSilent) {
+                document.getElementById('error-banner').style.display = 'block'; 
+                document.getElementById('error-banner').innerText = "加载失败：" + e.message; 
+            }
+        } finally { 
+            if (!isSilent) showLoading(false); 
+        }
+    }
+    
+    async function loadRecords() { 
+        let data = await apiCall('/records'); 
+        data.sort((a, b) => new Date(b.play_date) - new Date(a.play_date));
+        globalRecords = data;
+        document.getElementById('totalCount').innerText = `共 ${globalRecords.length} 局`; 
+    }
+    
+    async function loadAliases() {
+        const data = await apiCall('/aliases');
+        if (data['__META_THRESHOLDS__']) {
+            try { thresholds = JSON.parse(data['__META_THRESHOLDS__']); delete data['__META_THRESHOLDS__']; } catch(e) {}
+        }
+        playerAliases = data;
+    }
+
+    async function saveAliases() {
+        const keys = document.querySelectorAll('.alias-key');
+        const vals = document.querySelectorAll('.alias-val');
+        const newMap = {};
+        keys.forEach((k, i) => { if(k.value.trim() && vals[i].value.trim()) newMap[k.value.trim()] = vals[i].value.trim(); });
+        newMap['__META_THRESHOLDS__'] = JSON.stringify(thresholds);
+        try { await apiCall('/aliases', 'POST', newMap); playerAliases = newMap; delete playerAliases['__META_THRESHOLDS__']; toggleAliasModal(); refreshUI(); showAlert("成功", "别名已更新", "✅"); } 
+        catch (e) { if (e.message === 'AUTH_FAILED') showAlert("失败", "权限验证失败", "❌"); else showAlert("失败", e.message, "❌"); }
+    }
+
+    async function safeHandleImport() {
+        const inputEl = document.getElementById('rawInput');
+        const text = inputEl.value.trim();
+        if (!text) return showAlert("提示", "内容不能为空", "⚠️");
+        const parsed = parseText(text);
+        if (!parsed) return showAlert("错误", "格式无法识别", "❌");
+        const isDuplicateLocal = globalRecords.some(r => r.room_id === parsed.roomId && dayjs(r.play_date).isSame(dayjs(parsed.date)));
+        if (isDuplicateLocal) return showAlert("重复", "该战绩已存在", "⚠️");
+        const btn = document.getElementById('uploadBtn');
+        btn.disabled = true; btn.innerText = "上传中...";
+        try {
+            await apiCall('/records', 'POST', { game_name: parsed.gameName, play_date: parsed.date, room_info: parsed.roomInfo, room_id: parsed.roomId, players: parsed.players });
+            showAlert("成功", "战绩导入成功", "✅"); inputEl.value = ''; await loadRecords(); refreshUI();
+        } catch (e) {
+            if (e.message === 'DUPLICATE') showAlert("重复", "该战绩已存在", "⚠️");
+            else if (e.message === 'AUTH_FAILED') showAlert("失败", "密码错误", "❌");
+            else showAlert("出错", e.message, "❌");
+        } finally { btn.disabled = false; btn.innerHTML = "📥 识别并导入"; }
+    }
+
+    async function deleteRecord(recordId) {
+        if (!confirm("⚠️ 确定要永久删除这条战绩吗？此操作无法恢复。")) return;
+        try {
+            await apiCall(`/records/${recordId}`, 'DELETE');
+            showAlert("成功", "战绩已删除", "✅"); await loadRecords(); refreshUI();
+        } catch (e) { if (e.message === 'AUTH_FAILED') showAlert("失败", "权限验证失败", "❌"); else showAlert("失败", e.message, "❌"); }
+    }
+
+    function calculateStats(records) {
+        const stats = {};
+        const chronRecords = [...records].reverse();
+        chronRecords.forEach(rec => {
+            rec.players.forEach(p => {
+                const name = getRealName(p.name);
+                if (!stats[name]) stats[name] = { 
+                    tempWinStreak: 0, tempLossStreak: 0, 
+                    currentStreakType: 'none', currentStreakCount: 0, 
+                    maxWinStreak: 0, maxLossStreak: 0 
+                };
+                const s = stats[name];
+                if (p.score > 0) {
+                    s.tempWinStreak++; s.tempLossStreak = 0; s.currentStreakType = 'win'; s.currentStreakCount = s.tempWinStreak;
+                    if (s.tempWinStreak > s.maxWinStreak) s.maxWinStreak = s.tempWinStreak;
+                } else {
+                    s.tempLossStreak++; s.tempWinStreak = 0; s.currentStreakType = 'loss'; s.currentStreakCount = s.tempLossStreak;
+                    if (s.tempLossStreak > s.maxLossStreak) s.maxLossStreak = s.tempLossStreak;
+                }
+            });
+        });
+        return stats;
+    }
+
+    function getBadgeHTML(type, count, isStatic = false) {
+        if (count < 2) return '';
+        let className = '', label = '';
+        if (type === 'win') {
+            if (count === 2) { className = 's-lv2'; label = '二连击破'; }
+            else if (count === 3) { className = 's-lv3'; label = '大杀特杀'; }
+            else if (count === 4) { className = 's-lv4'; label = '接近暴走'; }
+            else if (count === 5) { className = 's-lv5'; label = '主宰比赛'; }
+            else if (count === 6) { className = 's-lv6'; label = '无人可挡'; }
+            else if (count === 7) { className = 's-god'; label = '接近神了'; }
+            else if (count === 8) { className = 's-god'; label = '无敌超神!'; }
+            else { className = 's-god'; label = `${count}连胜, 求求你做个人吧!`; }
+        } else {
+            if (count === 2) { className = 'l-lv2'; label = '坐牢中'; }
+            else if (count === 3) { className = 'l-lv3'; label = '散财童子'; }
+            else if (count === 4) { className = 'l-lv4'; label = '慈善赌王'; }
+            else if (count === 5) { className = 'l-lv5'; label = '冥灯高照'; }
+            else if (count === 6) { className = 'l-god'; label = '破产清算'; }
+            else if (count === 7) { className = 'l-god'; label = '输掉底裤了'; }
+            else { className = 'l-god'; label = `${count}连跪, 求求你们让他赢一把吧!`; }
+        }
+        const staticClass = isStatic ? 's-static' : '';
+        return `<div class="s-tag ${className} ${staticClass}"><span>${label}</span></div>`;
+    }
+
+    function refreshUI() { 
+        globalActiveStats = calculateStats(globalRecords); 
+        const filteredRecords = getFilteredRecords();
+        periodStats = calculateStats(filteredRecords); 
+        renderHistory(globalRecords); 
+        renderStats(filteredRecords); 
+        renderChart(); 
+    }
+
+    function renderStats(records) {
+        const el = document.getElementById('statsTable');
+        const stats = {};
+        records.forEach(rec => {
+            rec.players.forEach(p => {
+                const name = getRealName(p.name);
+                if (!stats[name]) stats[name] = { score: 0, count: 0, wins: 0 };
+                stats[name].count++; stats[name].score += p.score; if (p.score > 0) stats[name].wins++;
+            });
+        });
+        const sorted = Object.entries(stats).map(([k, v]) => ({ name: k, ...v })).sort((a, b) => b.score - a.score);
+        
+        if (sorted.length === 0) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#999">该时段无数据</div>'; return; }
+        
+        let maxWR = -1, minWR = 101, maxPR = -1, minPR = 101;
+        const totalPeriodGames = records.length;
+        const counts = { maxWR: 0, minWR: 0, maxPR: 0, minPR: 0 };
+        sorted.forEach(p => {
+            if (p.count === 0) return;
+            const wr = (p.wins / p.count) * 100;
+            const pr = (p.count / totalPeriodGames) * 100;
+            if (wr > maxWR) maxWR = wr;
+            if (wr < minWR) minWR = wr;
+            if (pr > maxPR) maxPR = pr;
+            if (pr < minPR) minPR = pr;
+        });
+        sorted.forEach(p => {
+            if (p.count === 0) return;
+            const wr = (p.wins / p.count) * 100;
+            const pr = (p.count / totalPeriodGames) * 100;
+            if (Math.abs(wr - maxWR) < 0.01) counts.maxWR++;
+            if (Math.abs(wr - minWR) < 0.01) counts.minWR++;
+            if (Math.abs(pr - maxPR) < 0.01) counts.maxPR++;
+            if (Math.abs(pr - minPR) < 0.01) counts.minPR++;
+        });
+
+        const recordTitle = '成就'; 
+
+        let tableHtml = `<table><thead><tr><th>玩家</th><th>总分</th><th>局数</th><th>胜率</th><th>参战率</th><th>${recordTitle}</th></tr></thead><tbody>`;
+        sorted.forEach((p, idx) => {
+            const scoreClass = p.score > 0 ? 'pos' : (p.score < 0 ? 'neg' : '');
+            const scoreStr = p.score > 0 ? `+${p.score}` : p.score;
+            const winRateNum = p.count > 0 ? (p.wins / p.count) * 100 : 0;
+            const winRateStr = winRateNum.toFixed(1) + '%';
+            const partRateNum = totalPeriodGames > 0 ? (p.count / totalPeriodGames) * 100 : 0;
+            const partRateStr = partRateNum.toFixed(1) + '%';
+
+            let historyHtml = '<div style="display:flex;gap:4px;flex-wrap:wrap">';
+            
+            const pStat = periodStats[p.name] || { maxWinStreak:0, maxLossStreak:0 };
+            if (pStat.maxWinStreak >= 2) historyHtml += getBadgeHTML('win', pStat.maxWinStreak, true);
+            if (pStat.maxLossStreak >= 2) historyHtml += getBadgeHTML('loss', pStat.maxLossStreak, true);
+            
+            if (p.count > 0) {
+                if (counts.maxWR === 1 && Math.abs(winRateNum - maxWR) < 0.01) historyHtml += '<div class="s-tag tag-god"><span>🏆 你是我的神</span></div>';
+                if (counts.minWR === 1 && Math.abs(winRateNum - minWR) < 0.01) historyHtml += '<div class="s-tag tag-noob"><span>🥗 菜就多练</span></div>';
+                if (counts.maxPR === 1 && Math.abs(partRateNum - maxPR) < 0.01) historyHtml += '<div class="s-tag tag-worker"><span>👷 劳模</span></div>';
+                if (counts.minPR === 1 && Math.abs(partRateNum - minPR) < 0.01) historyHtml += '<div class="s-tag tag-fish"><span>🐟 摸鱼王</span></div>';
+            }
+
+            historyHtml += '</div>';
+            if(historyHtml === '<div style="display:flex;gap:4px;flex-wrap:wrap"></div>') historyHtml = '<span style="color:#cbd5e1">-</span>';
+
+            const gActive = globalActiveStats[p.name] || { currentStreakType:'none', currentStreakCount:0 };
+            const activeBadge = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
+
+            tableHtml += `<tr>
+                <td style="font-weight:500">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap">
+                        <span class="clickable-name" onclick="showPlayerDetails('${escapeHtml(p.name)}')">${escapeHtml(p.name)}</span>
+                        ${activeBadge}
+                    </div>
+                </td>
+                <td class="score ${scoreClass}">${scoreStr}</td>
+                <td style="color:#94a3b8">${p.count}</td>
+                <td style="font-size:0.9rem">${winRateStr}</td>
+                <td style="font-size:0.9rem; color:#64748b">${partRateStr}</td>
+                <td>${historyHtml}</td>
+            </tr>`;
+        });
+        tableHtml += '</tbody></table>';
+        el.innerHTML = `<div class="table-wrapper">${tableHtml}</div>`;
+    }
+
+    function renderHistory(records) {
+        const el = document.getElementById('historyList');
+        el.innerHTML = '';
+        if (records.length === 0) { el.innerHTML = '<div style="text-align:center;color:#999;padding:20px">暂无记录</div>'; return; }
+        const total = Math.ceil(records.length / pageSize) || 1;
+        if (currentPage > total) currentPage = total; if (currentPage < 1) currentPage = 1;
+        document.getElementById('pageInput').value = currentPage;
+        document.getElementById('totalPagesText').innerText = total;
+        
+        const latestRecordMap = {}; 
+        for (const rec of globalRecords) {
+            for (const p of rec.players) {
+                const name = getRealName(p.name);
+                if (!latestRecordMap[name]) {
+                    latestRecordMap[name] = rec.id;
+                }
+            }
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        records.slice(start, start + pageSize).forEach(rec => {
+            // 🔥 v8.17: 使用索引定位，确保点击一定有效
+            const globalIndex = globalRecords.indexOf(rec);
+
+            let pHTML = '';
+            rec.players.forEach(p => {
+                const color = p.score > 0 ? '#ef4444' : '#10b981';
+                let streakTag = '';
+                
+                const realName = getRealName(p.name);
+                if (latestRecordMap[realName] === rec.id) {
+                    const gActive = globalActiveStats[realName];
+                    if (gActive) streakTag = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
+                }
+
+                pHTML += `<span class="p-tag" style="color:${color}">${escapeHtml(realName)} ${p.score>0?'+':''}${p.score} ${streakTag}</span>`;
+            });
+            const div = document.createElement('div'); div.className = 'record-item';
+            
+            const isAdmin = !!localStorage.getItem('mahjong_auth_token');
+            const delBtn = isAdmin ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
+            // 🔥 v8.17: 传入 Index 而不是 ID
+            const editBtn = isAdmin ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
+
+            let roomDisplay = '';
+            if (rec.room_id === 'Manual') {
+                roomDisplay = '<span class="tag-offline">🏟️ 线下</span>';
+            } else if (rec.room_id !== 'unknown') {
+                roomDisplay = `<span>房:${escapeHtml(rec.room_id)}</span>`;
+            }
+
+            div.innerHTML = `<div class="record-meta"><span>${dayjs(rec.play_date).format('MM-DD HH:mm')}</span><div style="display:flex;align-items:center">${roomDisplay}${editBtn}${delBtn}</div></div><div class="player-tags">${pHTML}</div>`;
+            el.appendChild(div);
+        });
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        const records = getFilteredRecords().reverse(); 
+        const allPlayerNames = new Set();
+        records.forEach(r => r.players.forEach(p => allPlayerNames.add(getRealName(p.name))));
+        const playersList = Array.from(allPlayerNames);
+        if (playersList.length === 0) { if(myChart) myChart.destroy(); return; }
+        
+        const datasets = playersList.map((name, index) => {
+            const hue = (index * 137.508) % 360; 
+            return { label: name, data: [0], borderColor: `hsl(${hue}, 70%, 50%)`, backgroundColor: 'transparent', borderWidth: 2, tension: 0.1, pointRadius: 0, pointHoverRadius: 4 };
+        });
+        
+        const currentScores = {}; playersList.forEach(p => currentScores[p] = 0);
+        const labels = [''];
+        
+        records.forEach(rec => {
+            labels.push(dayjs(rec.play_date).format('MM-DD HH:mm'));
+            const roundScores = {}; rec.players.forEach(p => roundScores[getRealName(p.name)] = p.score);
+            playersList.forEach((player, idx) => {
+                if (roundScores[player] !== undefined) currentScores[player] += roundScores[player];
+                datasets[idx].data.push(currentScores[player]);
+            });
+        });
+        
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } }, tooltip: { itemSort: (a, b) => b.raw - a.raw } }, scales: { x: { display: false }, y: { grid: { color: '#f1f5f9' } } } } });
+    }
+
+    function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
+    function escapeHtml(text) { if (!text) return text; return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+    function getRealName(rawName) { let name = rawName.replace(/\(房主\)/g, '').trim(); return playerAliases[name] || name; }
+    function parseText(text) {
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length < 5) return null;
+        const gameName = lines[0]; const date = lines[1]; const roomLine = lines[2] || "";
+        let roomId = "unknown"; const roomMatch = roomLine.match(/房间号[：:](\d+)/); if (roomMatch) roomId = roomMatch[1];
+        if (!text.includes("======玩家战绩======")) return null;
+        const body = text.split("======玩家战绩======")[1];
+        const blocks = body.split('-----------------------------');
+        const players = [];
+        blocks.forEach(b => {
+            const nameMatch = b.match(/昵称：(.+)/); const scoreMatch = b.match(/积分：([+\-]?\d+)/);
+            if (nameMatch && scoreMatch) players.push({ name: nameMatch[1].trim(), score: parseInt(scoreMatch[1], 10) });
+        });
+        if (players.length === 0) return null;
+        return { gameName, date, roomInfo: roomLine, roomId, players };
+    }
+    
+    function toggleAliasModal() { 
+        if (localStorage.getItem('mahjong_guest_token')) { showAlert("权限不足", "游客模式无法修改别名", "⛔️"); return; }
+        const m = document.getElementById('aliasModal'); m.style.display = m.style.display==='flex'?'none':'flex'; if(m.style.display==='flex') renderAliasInputs(); 
+    }
+    function renderAliasInputs() {
+        const c = document.getElementById('aliasList'); c.innerHTML = '';
+        const list = Object.entries(playerAliases);
+        if (list.length === 0) addAliasRow(); else list.forEach(([k, v]) => addAliasRow(k, v));
+    }
+    function addAliasRow(key = '', val = '') {
+        const div = document.createElement('div'); div.className = 'alias-row';
+        div.innerHTML = `<input class="alias-key" placeholder="原昵称" value="${key}"><span>➡</span><input class="alias-val" placeholder="合并后" value="${val}"><button class="del-btn" onclick="this.parentElement.remove()" title="删除">✕</button>`;
+        document.getElementById('aliasList').appendChild(div);
+    }
+    function getFilteredRecords() {
+        return globalRecords.filter(rec => {
+            const rDate = dayjs(rec.play_date);
+            if (currentFilter === 'all') return true;
+            if (currentFilter === 'day') return rDate.isSame(anchorDate, 'day');
+            if (currentFilter === 'week') return rDate.isoWeek ? rDate.isSame(anchorDate, 'isoWeek') : rDate.isSame(anchorDate, 'week');
+            if (currentFilter === 'month') return rDate.isSame(anchorDate, 'month');
+            if (currentFilter === 'year') return rDate.isSame(anchorDate, 'year');
+            return false;
+        });
+    }
+    function changeDate(delta) {
+        if (currentFilter === 'all') return;
+        if (currentFilter === 'day') anchorDate = anchorDate.add(delta, 'day');
+        if (currentFilter === 'week') anchorDate = anchorDate.add(delta * 7, 'day');
+        if (currentFilter === 'month') anchorDate = anchorDate.add(delta, 'month');
+        if (currentFilter === 'year') anchorDate = anchorDate.add(delta, 'year');
+        updateDateDisplay(); refreshUI();
+    }
+    function updateDateDisplay() {
+        const el = document.getElementById('dateDisplay');
+        try {
+            if (currentFilter === 'all') el.innerText = '全部时间';
+            else {
+                const yy = anchorDate.format('YY');
+                if (currentFilter === 'day') el.innerText = anchorDate.format('YY-MM-DD');
+                else if (currentFilter === 'week') {
+                    if (anchorDate.isoWeekYear && anchorDate.isoWeek) {
+                        const s = anchorDate.startOf('isoWeek').format('MM.DD'); 
+                        const e = anchorDate.endOf('isoWeek').format('MM.DD');
+                        const shortYear = anchorDate.isoWeekYear() % 100;
+                        el.innerText = `${shortYear}年${anchorDate.isoWeek()}周 (${s}-${e})`; 
+                    } else el.innerText = anchorDate.format('YY-MM-DD');
+                } 
+                else if (currentFilter === 'month') el.innerText = anchorDate.format('YY年MM月');
+                else if (currentFilter === 'year') el.innerText = anchorDate.format('YY年');
+            }
+        } catch(e) { el.innerText = anchorDate.format('YYYY-MM-DD'); }
+    }
+    function changePage(delta) {
+        const totalPages = Math.ceil(globalRecords.length / pageSize) || 1;
+        const next = currentPage + delta;
+        if (next >= 1 && next <= totalPages) { currentPage = next; renderHistory(globalRecords); }
+    }
+    function jumpToPage() {
+        const input = document.getElementById('pageInput'); let val = parseInt(input.value);
+        const totalPages = Math.ceil(globalRecords.length / pageSize) || 1;
+        if (isNaN(val) || val < 1) val = 1; if (val > totalPages) val = totalPages;
+        currentPage = val; renderHistory(globalRecords); if (input.value != val) input.value = val;
+    }
+</script>
+</body>
+</html>
