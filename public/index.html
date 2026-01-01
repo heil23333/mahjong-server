@@ -61,8 +61,13 @@
         .clickable-name:hover { opacity: 0.8; text-decoration: underline; }
 
         /* 徽章 */
-        .s-tag { display: inline-block; position: relative; overflow: hidden; font-size: 0.65rem; line-height: 1; padding: 3px 6px; border-radius: 4px; color: #fff; font-weight: 800; box-shadow: 0 1px 2px rgba(0,0,0,0.1); vertical-align: middle; transform: skewX(-10deg); z-index: 1; margin-top: 2px; margin-right: 4px; }
-        .s-tag span { display: inline-block; transform: skewX(10deg); position: relative; z-index: 2; }
+        .s-tag { 
+            display: inline-block; position: relative; overflow: hidden; font-size: 0.65rem; line-height: 1; padding: 3px 6px; border-radius: 4px; color: #fff; font-weight: 800; box-shadow: 0 1px 2px rgba(0,0,0,0.1); vertical-align: middle; transform: skewX(-10deg); z-index: 1; margin-top: 2px; margin-right: 4px; 
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .s-tag:active { transform: skewX(-10deg) scale(0.95); }
+        .s-tag span { display: inline-block; transform: skewX(10deg); position: relative; z-index: 2; pointer-events: none; }
+        
         .s-static::after { display: none !important; }
         .s-static { animation: none !important; box-shadow: none !important; opacity: 0.9; margin-left: 0; }
         
@@ -72,11 +77,13 @@
         .s-lv5 { background: linear-gradient(135deg, #f87171, #dc2626); border-bottom: 2px solid #991b1b; }
         .s-lv6 { background: linear-gradient(135deg, #a78bfa, #7c3aed); border-bottom: 2px solid #5b21b6; }
         .s-god { background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%); border-bottom: 2px solid #78350f; box-shadow: 0 0 10px rgba(251, 191, 36, 0.8); animation: borderPulse 1.5s infinite alternate; z-index: 5; }
+        
         .l-lv2 { background: linear-gradient(135deg, #e5e7eb, #9ca3af); border-bottom: 2px solid #6b7280; color: #374151; }
         .l-lv3 { background: linear-gradient(135deg, #86efac, #22c55e); border-bottom: 2px solid #15803d; }
         .l-lv4 { background: linear-gradient(135deg, #67e8f9, #06b6d4); border-bottom: 2px solid #0e7490; }
         .l-lv5 { background: linear-gradient(135deg, #4c1d95, #2e1065); border-bottom: 2px solid #0f172a; }
-        .l-god { background: #000; border-bottom: 2px solid #dc2626; color: #ef4444; animation: glitch 0.5s infinite; }
+        .l-god { background: #000; border-bottom: 2px solid #dc2626; color: #ef4444; }
+
         .tag-god { background: linear-gradient(135deg, #fcd34d, #f59e0b); border-bottom: 2px solid #b45309; color: #fff; }
         .tag-noob { background: linear-gradient(135deg, #10b981, #059669); border-bottom: 2px solid #047857; color: #fff; }
         .tag-worker { background: linear-gradient(135deg, #3b82f6, #2563eb); border-bottom: 2px solid #1e40af; color: #fff; }
@@ -125,7 +132,6 @@
         .sum-check.error { color: #ef4444; background: #fee2e2; }
         .sum-check.ok { color: #10b981; background: #dcfce7; }
 
-        /* 🔥 v8.26: 布局系统 🔥 */
         .stat-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
         .stat-grid-compact { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
         
@@ -133,26 +139,17 @@
         .stat-box.clickable { cursor: pointer; transition: 0.2s; border-color: #bfdbfe; background: #eff6ff; }
         .stat-box.clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-color: var(--primary); }
         
-        /* 默认样式：上下居中 (用于顶部单局纪录) */
         .stat-label { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; font-weight: 600; }
         .stat-val { font-size: 1.1rem; font-weight: 800; color: #334155; font-family: monospace; }
         .stat-val.pos { color: #ef4444; }
         .stat-val.neg { color: #10b981; }
 
-        /* 🔥 v8.26: 左右布局卡片 (左标题，右数据) 🔥 */
-        /* 这个类用于所有下方卡片，实现 text-align: left 和 right 的对比 */
         .stat-box-row { 
             background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 10px; 
-            display: flex; flex-direction: row; justify-content: space-between; align-items: center; min-height: 42px; /* 进一步调矮 */
+            display: flex; flex-direction: row; justify-content: space-between; align-items: center; min-height: 42px;
         }
-        
-        /* 左侧标题 */
         .stat-box-row .stat-label { margin-bottom: 0; text-align: left; font-size: 0.65rem; }
-        
-        /* 右侧数据 (默认水平居中) */
         .stat-box-row .stat-val { font-size: 0.95rem; line-height: 1; }
-        
-        /* 特殊：单日数据 (右侧垂直堆叠) */
         .stat-data-group { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
         .stat-data-group .stat-val { font-size: 1.1rem; }
         .stat-sub { font-size: 0.6rem; color: #94a3b8; margin-top: 2px; font-family: monospace; }
@@ -338,7 +335,9 @@
             </div>
         </div>
         
-        <div class="divider-text">📅 月度头衔 (独占榜首)</div>
+        <div class="divider-text">
+            📅 月度头衔 (独占榜首次数) 
+        </div>
         <div id="pd-badge-container" class="badge-list">
             </div>
 
@@ -410,7 +409,7 @@
 </div>
 
 <script>
-    console.log('Ver: v8.26');
+    console.log('Ver: v8.38');
     let globalRecords = [];
     let playerAliases = {}; 
     let currentFilter = 'week'; 
@@ -422,6 +421,57 @@
     let periodStats = {};       
     let currentPlayerDetailData = { maxWinRecord: null, maxLossRecord: null, playerName: '' };
     let thresholds = { cool: 100, bad: 100, fish: 5 };
+
+    // 🔥 v8.36: 勋章说明字典 (精确匹配)
+    const BADGE_EXPLAIN = {
+        '二连击破': '2 连胜',
+        '大杀特杀': '3 连胜',
+        '接近暴走': '4 连胜',
+        '主宰比赛': '5 连胜',
+        '无人可挡': '6 连胜',
+        '接近神了': '7 连胜',
+        '无敌超神!': '8 连胜',
+        '坐牢中': '2 连跪',
+        '散财童子': '3 连跪',
+        '慈善赌王': '4 连跪',
+        '冥灯高照': '5 连跪',
+        '破产清算': '6 连跪',
+        '输掉底裤了': '7 连跪'
+    };
+
+    function getPeriodText() {
+        if (currentFilter === 'day') return '当日';
+        if (currentFilter === 'week') return '周度';
+        if (currentFilter === 'month') return '月度';
+        if (currentFilter === 'year') return '年度';
+        return '月度'; // 默认
+    }
+
+    // 🔥 v8.37: 动态勋章提示 (移除了“独占”)
+    window.showBadgeTip = (title, forcedPeriod = null) => {
+        let desc = BADGE_EXPLAIN[title];
+
+        if (!desc) {
+            const winMatch = title.match(/(\d+)连胜/);
+            const loseMatch = title.match(/(\d+)连跪/);
+            
+            if (winMatch) desc = `近期战绩：${winMatch[1]} 连胜`;
+            else if (loseMatch) desc = `近期战绩：${loseMatch[1]} 连跪`;
+            else {
+                let period = forcedPeriod || getPeriodText();
+                
+                if (title.includes('神')) desc = `${period}胜率排名第一`;
+                else if (title.includes('菜')) desc = `${period}胜率排名倒数第一`;
+                else if (title.includes('钱')) desc = `${period}净胜分排名第一`;
+                else if (title.includes('拿走')) desc = `${period}净胜分排名倒数第一`; 
+                else if (title.includes('劳模')) desc = `${period}参与对局数最多`;
+                else if (title.includes('摸鱼')) desc = `${period}参与对局数最少`;
+                else desc = '暂无说明';
+            }
+        }
+        
+        showAlert(title, desc, '🏅');
+    }
 
     window.addEventListener('load', () => {
         if (window.dayjs_plugin_isoWeek) dayjs.extend(window.dayjs_plugin_isoWeek);
@@ -484,7 +534,6 @@
         checkEl.className = sum === 0 ? 'sum-check ok' : 'sum-check error';
     }
 
-    // v8.16: 正规军写法：编辑时走 PUT，新增走 POST
     async function submitManualAdd() {
         const dateVal = document.getElementById('manualDate').value;
         const roomIdVal = document.getElementById('manualRoomId').value.trim() || 'Manual';
@@ -536,9 +585,11 @@
         }
     }
 
-    // --- v8.11 核心：月度荣誉(含大赢家)计算 ---
+    // --- 🔥 v8.33 核心：荣誉计算强制按月度 ---
     function calculateMonthlyBadges(targetName) {
         const monthGroups = {};
+        
+        // 强制按月分组，忽略 currentFilter
         globalRecords.forEach(rec => {
             const m = dayjs(rec.play_date).format('YYYY-MM');
             if (!monthGroups[m]) monthGroups[m] = [];
@@ -548,8 +599,8 @@
         const badges = { god: 0, noob: 0, worker: 0, fish: 0, bigwin: 0, bigloss: 0 };
 
         for (const [month, records] of Object.entries(monthGroups)) {
-            const totalGamesInMonth = records.length;
-            if (totalGamesInMonth === 0) continue;
+            const totalGamesInPeriod = records.length;
+            if (totalGamesInPeriod === 0) continue;
 
             const pStats = {};
             records.forEach(rec => {
@@ -565,7 +616,7 @@
             let maxWR = -1, minWR = 101, maxPR = -1, minPR = 101, maxScore = -999999, minScore = 999999;
             for (const [name, s] of Object.entries(pStats)) {
                 const wr = (s.wins / s.count) * 100;
-                const pr = (s.count / totalGamesInMonth) * 100;
+                const pr = (s.count / totalGamesInPeriod) * 100;
                 const sc = s.score;
 
                 if (wr > maxWR) maxWR = wr;
@@ -579,7 +630,7 @@
             let counts = { maxWR: 0, minWR: 0, maxPR: 0, minPR: 0, maxScore: 0, minScore: 0 };
             for (const [name, s] of Object.entries(pStats)) {
                 const wr = (s.wins / s.count) * 100;
-                const pr = (s.count / totalGamesInMonth) * 100;
+                const pr = (s.count / totalGamesInPeriod) * 100;
                 const sc = s.score;
 
                 if (Math.abs(wr - maxWR) < 0.01) counts.maxWR++;
@@ -593,7 +644,7 @@
             const myStat = pStats[targetName];
             if (myStat) {
                 const myWR = (myStat.wins / myStat.count) * 100;
-                const myPR = (myStat.count / totalGamesInMonth) * 100;
+                const myPR = (myStat.count / totalGamesInPeriod) * 100;
                 const myScore = myStat.score;
 
                 if (counts.maxWR === 1 && Math.abs(myWR - maxWR) < 0.01) badges.god++;
@@ -607,7 +658,7 @@
         return badges;
     }
 
-    // --- 🔥 玩家详情逻辑 (v8.26) 🔥 ---
+    // --- 🔥 玩家详情逻辑 (v8.34) 🔥 ---
     function showPlayerDetails(name) {
         document.getElementById('pd-name').innerText = name;
         document.getElementById('lbl-cool').innerText = `😍 爽到了 (>${thresholds.cool})`;
@@ -689,15 +740,15 @@
         const rate = totalGames > 0 ? ((stats.gameCount / totalGames) * 100).toFixed(1) + '%' : '0%';
         document.getElementById('pd-rate').innerText = rate;
 
-        // 聚合标签展示
+        // 🔥 v8.34: 聚合标签展示 (强制按月度计算，并传参 '月度')
         const badges = calculateMonthlyBadges(name);
         let html = '';
-        if (badges.god > 0) html += `<div class="s-tag tag-god" style="margin:2px"><span>🏆 你是我的神 x${badges.god}</span></div>`;
-        if (badges.bigwin > 0) html += `<div class="s-tag tag-god" style="margin:2px"><span>💰 把你的钱给我交了 x${badges.bigwin}</span></div>`;
-        if (badges.worker > 0) html += `<div class="s-tag tag-worker" style="margin:2px"><span>👷 劳模 x${badges.worker}</span></div>`;
-        if (badges.noob > 0) html += `<div class="s-tag tag-noob" style="margin:2px"><span>🥗 菜就多练 x${badges.noob}</span></div>`;
-        if (badges.bigloss > 0) html += `<div class="s-tag tag-noob" style="margin:2px"><span>💸 请拿走我的底裤 x${badges.bigloss}</span></div>`;
-        if (badges.fish > 0) html += `<div class="s-tag tag-fish" style="margin:2px"><span>🐟 摸鱼王 x${badges.fish}</span></div>`;
+        if (badges.god > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('你是我的神', '月度')" style="margin:2px"><span>🏆 你是我的神 x${badges.god}</span></div>`;
+        if (badges.bigwin > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('把你的钱给我交了', '月度')" style="margin:2px"><span>💰 把你的钱给我交了 x${badges.bigwin}</span></div>`;
+        if (badges.worker > 0) html += `<div class="s-tag tag-worker" onclick="showBadgeTip('劳模', '月度')" style="margin:2px"><span>👷 劳模 x${badges.worker}</span></div>`;
+        if (badges.noob > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('菜就多练', '月度')" style="margin:2px"><span>🥗 菜就多练 x${badges.noob}</span></div>`;
+        if (badges.bigloss > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('请拿走我的底裤', '月度')" style="margin:2px"><span>💸 请拿走我的底裤 x${badges.bigloss}</span></div>`;
+        if (badges.fish > 0) html += `<div class="s-tag tag-fish" onclick="showBadgeTip('摸鱼王', '月度')" style="margin:2px"><span>🐟 摸鱼王 x${badges.fish}</span></div>`;
         
         document.getElementById('pd-badge-container').innerHTML = html || '<span style="color:#cbd5e1;font-size:0.8rem">暂无月度荣誉</span>';
 
@@ -936,7 +987,7 @@
             else { className = 'l-god'; label = `${count}连跪, 求求你们让他赢一把吧!`; }
         }
         const staticClass = isStatic ? 's-static' : '';
-        return `<div class="s-tag ${className} ${staticClass}"><span>${label}</span></div>`;
+        return `<div class="s-tag ${className} ${staticClass}" onclick="event.stopPropagation(); showBadgeTip('${label}')"><span>${label}</span></div>`;
     }
 
     function refreshUI() { 
@@ -946,6 +997,62 @@
         renderHistory(globalRecords); 
         renderStats(filteredRecords); 
         renderChart(); 
+    }
+
+    // 🔥 v8.38: 修复了遗漏的 renderHistory 函数
+    function renderHistory(records) {
+        const el = document.getElementById('historyList');
+        el.innerHTML = '';
+        if (records.length === 0) { el.innerHTML = '<div style="text-align:center;color:#999;padding:20px">暂无记录</div>'; return; }
+        const total = Math.ceil(records.length / pageSize) || 1;
+        if (currentPage > total) currentPage = total; if (currentPage < 1) currentPage = 1;
+        document.getElementById('pageInput').value = currentPage;
+        document.getElementById('totalPagesText').innerText = total;
+        
+        const latestRecordMap = {}; 
+        for (const rec of globalRecords) {
+            for (const p of rec.players) {
+                const name = getRealName(p.name);
+                if (!latestRecordMap[name]) {
+                    latestRecordMap[name] = rec.id;
+                }
+            }
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        records.slice(start, start + pageSize).forEach(rec => {
+            const globalIndex = globalRecords.indexOf(rec);
+
+            let pHTML = '';
+            rec.players.forEach(p => {
+                const color = p.score > 0 ? '#ef4444' : '#10b981';
+                let streakTag = '';
+                
+                const realName = getRealName(p.name);
+                if (latestRecordMap[realName] === rec.id) {
+                    const gActive = globalActiveStats[realName];
+                    if (gActive) streakTag = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
+                }
+
+                pHTML += `<span class="p-tag" style="color:${color}">${escapeHtml(realName)} ${p.score>0?'+':''}${p.score} ${streakTag}</span>`;
+            });
+            const div = document.createElement('div'); div.className = 'record-item';
+            
+            const isAdmin = !!localStorage.getItem('mahjong_auth_token');
+            const delBtn = isAdmin ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
+            // v8.17: 传入 Index 而不是 ID
+            const editBtn = isAdmin ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
+
+            let roomDisplay = '';
+            if (rec.room_id === 'Manual') {
+                roomDisplay = '<span class="tag-offline">🏟️ 线下</span>';
+            } else if (rec.room_id !== 'unknown') {
+                roomDisplay = `<span>房:${escapeHtml(rec.room_id)}</span>`;
+            }
+
+            div.innerHTML = `<div class="record-meta"><span>${dayjs(rec.play_date).format('MM-DD HH:mm')}</span><div style="display:flex;align-items:center">${roomDisplay}${editBtn}${delBtn}</div></div><div class="player-tags">${pHTML}</div>`;
+            el.appendChild(div);
+        });
     }
 
     function renderStats(records) {
@@ -1002,10 +1109,10 @@
             if (pStat.maxLossStreak >= 2) historyHtml += getBadgeHTML('loss', pStat.maxLossStreak, true);
             
             if (p.count > 0) {
-                if (counts.maxWR === 1 && Math.abs(winRateNum - maxWR) < 0.01) historyHtml += '<div class="s-tag tag-god"><span>🏆 你是我的神</span></div>';
-                if (counts.minWR === 1 && Math.abs(winRateNum - minWR) < 0.01) historyHtml += '<div class="s-tag tag-noob"><span>🥗 菜就多练</span></div>';
-                if (counts.maxPR === 1 && Math.abs(partRateNum - maxPR) < 0.01) historyHtml += '<div class="s-tag tag-worker"><span>👷 劳模</span></div>';
-                if (counts.minPR === 1 && Math.abs(partRateNum - minPR) < 0.01) historyHtml += '<div class="s-tag tag-fish"><span>🐟 摸鱼王</span></div>';
+                if (counts.maxWR === 1 && Math.abs(winRateNum - maxWR) < 0.01) historyHtml += '<div class="s-tag tag-god" onclick="showBadgeTip(\'你是我的神\')"><span>🏆 你是我的神</span></div>';
+                if (counts.minWR === 1 && Math.abs(winRateNum - minWR) < 0.01) historyHtml += '<div class="s-tag tag-noob" onclick="showBadgeTip(\'菜就多练\')"><span>🥗 菜就多练</span></div>';
+                if (counts.maxPR === 1 && Math.abs(partRateNum - maxPR) < 0.01) historyHtml += '<div class="s-tag tag-worker" onclick="showBadgeTip(\'劳模\')"><span>👷 劳模</span></div>';
+                if (counts.minPR === 1 && Math.abs(partRateNum - minPR) < 0.01) historyHtml += '<div class="s-tag tag-fish" onclick="showBadgeTip(\'摸鱼王\')"><span>🐟 摸鱼王</span></div>';
             }
 
             historyHtml += '</div>';
@@ -1030,62 +1137,6 @@
         });
         tableHtml += '</tbody></table>';
         el.innerHTML = `<div class="table-wrapper">${tableHtml}</div>`;
-    }
-
-    function renderHistory(records) {
-        const el = document.getElementById('historyList');
-        el.innerHTML = '';
-        if (records.length === 0) { el.innerHTML = '<div style="text-align:center;color:#999;padding:20px">暂无记录</div>'; return; }
-        const total = Math.ceil(records.length / pageSize) || 1;
-        if (currentPage > total) currentPage = total; if (currentPage < 1) currentPage = 1;
-        document.getElementById('pageInput').value = currentPage;
-        document.getElementById('totalPagesText').innerText = total;
-        
-        const latestRecordMap = {}; 
-        for (const rec of globalRecords) {
-            for (const p of rec.players) {
-                const name = getRealName(p.name);
-                if (!latestRecordMap[name]) {
-                    latestRecordMap[name] = rec.id;
-                }
-            }
-        }
-
-        const start = (currentPage - 1) * pageSize;
-        records.slice(start, start + pageSize).forEach(rec => {
-            // v8.17: 使用索引定位，确保点击一定有效
-            const globalIndex = globalRecords.indexOf(rec);
-
-            let pHTML = '';
-            rec.players.forEach(p => {
-                const color = p.score > 0 ? '#ef4444' : '#10b981';
-                let streakTag = '';
-                
-                const realName = getRealName(p.name);
-                if (latestRecordMap[realName] === rec.id) {
-                    const gActive = globalActiveStats[realName];
-                    if (gActive) streakTag = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
-                }
-
-                pHTML += `<span class="p-tag" style="color:${color}">${escapeHtml(realName)} ${p.score>0?'+':''}${p.score} ${streakTag}</span>`;
-            });
-            const div = document.createElement('div'); div.className = 'record-item';
-            
-            const isAdmin = !!localStorage.getItem('mahjong_auth_token');
-            const delBtn = isAdmin ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
-            // v8.17: 传入 Index 而不是 ID
-            const editBtn = isAdmin ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
-
-            let roomDisplay = '';
-            if (rec.room_id === 'Manual') {
-                roomDisplay = '<span class="tag-offline">🏟️ 线下</span>';
-            } else if (rec.room_id !== 'unknown') {
-                roomDisplay = `<span>房:${escapeHtml(rec.room_id)}</span>`;
-            }
-
-            div.innerHTML = `<div class="record-meta"><span>${dayjs(rec.play_date).format('MM-DD HH:mm')}</span><div style="display:flex;align-items:center">${roomDisplay}${editBtn}${delBtn}</div></div><div class="player-tags">${pHTML}</div>`;
-            el.appendChild(div);
-        });
     }
 
     function renderChart() {
