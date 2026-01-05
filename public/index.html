@@ -176,6 +176,9 @@
         .box-fish { background: #f1f5f9; border-color: #cbd5e1; } .box-fish .honor-val { color: #475569; }
         .box-bigwin { background: #fef2f2; border-color: #fca5a5; } .box-bigwin .honor-val { color: #dc2626; }
         .box-bigloss { background: #f0fdfa; border-color: #5eead4; } .box-bigloss .honor-val { color: #0f766e; }
+        
+        /* 仅 Super Admin 可见 */
+        .super-admin-only { display: none; }
     </style>
 </head>
 <body>
@@ -190,12 +193,23 @@
     <h1 class="app-title">雀神榜</h1>
 
     <div class="card" id="adminPanel">
-        <h2 style="font-size:1rem; margin-bottom:10px; opacity:0.8">🛠️ 管理员操作</h2>
+        <h2 style="font-size:1rem; margin-bottom:10px; opacity:0.8">🛠️ 管理员操作 <span id="roleBadge" class="footer-info" style="font-weight:normal; margin-left:10px; display:none"></span></h2>
+        
         <textarea id="rawInput" placeholder="在此粘贴战绩文本..."></textarea>
+        
         <div class="btn-toolbar">
             <button class="btn" id="uploadBtn" onclick="tryAction(safeHandleImport)">📥 识别并导入</button>
             <button class="btn" onclick="tryAction(openManualAddModal)">✍️ 手动录入</button>
-            <button class="btn outline" onclick="tryAction(toggleAliasModal)">👥 设置别名</button>
+            
+            <button class="btn outline super-admin-only" onclick="tryAction(toggleAliasModal)">👥 设置别名</button>
+        </div>
+
+        <div class="super-admin-only" style="margin-top:15px; padding-top:15px; border-top:1px dashed #cbd5e1">
+             <div style="font-size:0.8rem; font-weight:700; color:#64748b; margin-bottom:6px">设置录入员密码 (子管理员)</div>
+             <div style="display:flex; gap:8px">
+                 <input id="subAdminPwdInput" class="modal-input" style="margin:0; padding:6px 10px; font-size:0.9rem" placeholder="输入新密码">
+                 <button class="btn" style="flex-shrink:0" onclick="saveSubAdminPwd()">保存</button>
+             </div>
         </div>
     </div>
 
@@ -239,8 +253,7 @@
             <button class="footer-btn" onclick="openLoginModal('admin')">🔑 管理员登录</button>
         </div>
         <div id="adminControls" style="display:none; gap:10px">
-            <span class="footer-info">👮 管理员模式</span>
-            <button class="footer-btn" onclick="doLogout()" style="color:#ef4444; border-color:#fca5a5">退出</button>
+            <button class="footer-btn" onclick="doLogout()" style="color:#ef4444; border-color:#fca5a5">退出登录</button>
         </div>
     </div>
 </div>
@@ -341,7 +354,7 @@
         <div id="pd-badge-container" class="badge-list">
             </div>
 
-        <div id="pd-admin-config" class="threshold-config">
+        <div id="pd-admin-config" class="threshold-config super-admin-only">
             <div style="font-size:0.8rem; font-weight:700; color:#94a3b8; margin-bottom:6px; text-align:center">⚙️ 统计阈值设置 (云端同步)</div>
             <div class="config-row">
                 <span>😍 爽 (>X)</span> <input type="number" id="cfg-cool" class="config-input" value="100">
@@ -388,7 +401,7 @@
         <div class="modal-hero">
             <div class="modal-icon" id="alertIcon"></div>
             <div class="modal-title" id="alertTitle"></div>
-            <div class="modal-desc" id="alertBody"></div>
+            <div class="modal-desc" id="alertBody" style="white-space: pre-wrap;"></div>
         </div>
         <div class="modal-btns">
             <button class="btn" style="width:100%" onclick="closeCustomAlert()">我知道了</button>
@@ -409,7 +422,7 @@
 </div>
 
 <script>
-    console.log('Ver: v8.38');
+    console.log('Ver: v8.42');
     let globalRecords = [];
     let playerAliases = {}; 
     let currentFilter = 'week'; 
@@ -424,19 +437,19 @@
 
     // 🔥 v8.36: 勋章说明字典 (精确匹配)
     const BADGE_EXPLAIN = {
-        '二连击破': '2 连胜',
-        '大杀特杀': '3 连胜',
-        '接近暴走': '4 连胜',
-        '主宰比赛': '5 连胜',
-        '无人可挡': '6 连胜',
-        '接近神了': '7 连胜',
-        '无敌超神!': '8 连胜',
-        '坐牢中': '2 连跪',
-        '散财童子': '3 连跪',
-        '慈善赌王': '4 连跪',
-        '冥灯高照': '5 连跪',
-        '破产清算': '6 连跪',
-        '输掉底裤了': '7 连跪'
+        '二连击破': '近期战绩：2 连胜',
+        '大杀特杀': '近期战绩：3 连胜',
+        '接近暴走': '近期战绩：4 连胜',
+        '主宰比赛': '近期战绩：5 连胜',
+        '无人可挡': '近期战绩：6 连胜',
+        '接近神了': '近期战绩：7 连胜',
+        '无敌超神!': '近期战绩：8 连胜',
+        '坐牢中': '近期战绩：2 连跪',
+        '散财童子': '近期战绩：3 连跪',
+        '慈善赌王': '近期战绩：4 连跪',
+        '冥灯高照': '近期战绩：5 连跪',
+        '破产清算': '近期战绩：6 连跪',
+        '输掉底裤了': '近期战绩：7 连跪'
     };
 
     function getPeriodText() {
@@ -447,11 +460,15 @@
         return '月度'; // 默认
     }
 
-    // 🔥 v8.37: 动态勋章提示 (移除了“独占”)
-    window.showBadgeTip = (title, forcedPeriod = null) => {
+    // 🔥 v8.42: 动态勋章提示 (支持时间追溯)
+    window.showBadgeTip = (title, forcedPeriod = null, extraData = null) => {
         let desc = BADGE_EXPLAIN[title];
 
-        if (!desc) {
+        // 1. 如果有精确定义
+        if (desc) {
+            // pass
+        } else {
+            // 2. 动态匹配
             const winMatch = title.match(/(\d+)连胜/);
             const loseMatch = title.match(/(\d+)连跪/);
             
@@ -470,6 +487,17 @@
             }
         }
         
+        // 🔥 3. 附加时间信息
+        if (extraData) {
+            if (title.includes('连') || title.includes('击破') || title.includes('暴走') || title.includes('主宰') || title.includes('无人') || title.includes('坐牢') || title.includes('童子') || title.includes('赌王') || title.includes('冥灯') || title.includes('破产')) {
+                desc += `\n\n🕒 达成时间:\n${extraData}`;
+            } else if (title.includes('月度') || forcedPeriod === '月度') {
+                desc += `\n\n📅 获奖月份:\n${extraData}`;
+            } else {
+                desc += `\n\n📅 所属时段:\n${extraData}`;
+            }
+        }
+        
         showAlert(title, desc, '🏅');
     }
 
@@ -477,6 +505,13 @@
         if (window.dayjs_plugin_isoWeek) dayjs.extend(window.dayjs_plugin_isoWeek);
         if (window.dayjs_plugin_isoWeekYear) dayjs.extend(window.dayjs_plugin_isoWeekYear);
         
+        // 恢复登录状态
+        const savedToken = localStorage.getItem('mahjong_auth_token');
+        const savedRole = localStorage.getItem('mahjong_user_role');
+        if (savedToken && savedRole) {
+            currentUserRole = savedRole;
+        }
+
         checkAuthUI();
         updateDateDisplay();
         initData(); 
@@ -596,7 +631,7 @@
             monthGroups[m].push(rec);
         });
 
-        const badges = { god: 0, noob: 0, worker: 0, fish: 0, bigwin: 0, bigloss: 0 };
+        const badges = { god: [], noob: [], worker: [], fish: [], bigwin: [], bigloss: [] };
 
         for (const [month, records] of Object.entries(monthGroups)) {
             const totalGamesInPeriod = records.length;
@@ -647,12 +682,13 @@
                 const myPR = (myStat.count / totalGamesInPeriod) * 100;
                 const myScore = myStat.score;
 
-                if (counts.maxWR === 1 && Math.abs(myWR - maxWR) < 0.01) badges.god++;
-                if (counts.minWR === 1 && Math.abs(myWR - minWR) < 0.01) badges.noob++;
-                if (counts.maxPR === 1 && Math.abs(myPR - maxPR) < 0.01) badges.worker++;
-                if (counts.minPR === 1 && Math.abs(myPR - minPR) < 0.01) badges.fish++;
-                if (counts.maxScore === 1 && myScore === maxScore) badges.bigwin++;
-                if (counts.minScore === 1 && myScore === minScore) badges.bigloss++;
+                // Push month to array instead of incrementing counter
+                if (counts.maxWR === 1 && Math.abs(myWR - maxWR) < 0.01) badges.god.push(month);
+                if (counts.minWR === 1 && Math.abs(myWR - minWR) < 0.01) badges.noob.push(month);
+                if (counts.maxPR === 1 && Math.abs(myPR - maxPR) < 0.01) badges.worker.push(month);
+                if (counts.minPR === 1 && Math.abs(myPR - minPR) < 0.01) badges.fish.push(month);
+                if (counts.maxScore === 1 && myScore === maxScore) badges.bigwin.push(month);
+                if (counts.minScore === 1 && myScore === minScore) badges.bigloss.push(month);
             }
         }
         return badges;
@@ -740,15 +776,15 @@
         const rate = totalGames > 0 ? ((stats.gameCount / totalGames) * 100).toFixed(1) + '%' : '0%';
         document.getElementById('pd-rate').innerText = rate;
 
-        // 🔥 v8.34: 聚合标签展示 (强制按月度计算，并传参 '月度')
+        // 🔥 v8.40: 聚合标签展示 (传递月份列表)
         const badges = calculateMonthlyBadges(name);
         let html = '';
-        if (badges.god > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('你是我的神', '月度')" style="margin:2px"><span>🏆 你是我的神 x${badges.god}</span></div>`;
-        if (badges.bigwin > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('把你的钱给我交了', '月度')" style="margin:2px"><span>💰 把你的钱给我交了 x${badges.bigwin}</span></div>`;
-        if (badges.worker > 0) html += `<div class="s-tag tag-worker" onclick="showBadgeTip('劳模', '月度')" style="margin:2px"><span>👷 劳模 x${badges.worker}</span></div>`;
-        if (badges.noob > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('菜就多练', '月度')" style="margin:2px"><span>🥗 菜就多练 x${badges.noob}</span></div>`;
-        if (badges.bigloss > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('请拿走我的底裤', '月度')" style="margin:2px"><span>💸 请拿走我的底裤 x${badges.bigloss}</span></div>`;
-        if (badges.fish > 0) html += `<div class="s-tag tag-fish" onclick="showBadgeTip('摸鱼王', '月度')" style="margin:2px"><span>🐟 摸鱼王 x${badges.fish}</span></div>`;
+        if (badges.god.length > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('你是我的神', '月度', '${badges.god.join(', ')}')" style="margin:2px"><span>🏆 你是我的神 x${badges.god.length}</span></div>`;
+        if (badges.bigwin.length > 0) html += `<div class="s-tag tag-god" onclick="showBadgeTip('把你的钱给我交了', '月度', '${badges.bigwin.join(', ')}')" style="margin:2px"><span>💰 把你的钱给我交了 x${badges.bigwin.length}</span></div>`;
+        if (badges.worker.length > 0) html += `<div class="s-tag tag-worker" onclick="showBadgeTip('劳模', '月度', '${badges.worker.join(', ')}')" style="margin:2px"><span>👷 劳模 x${badges.worker.length}</span></div>`;
+        if (badges.noob.length > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('菜就多练', '月度', '${badges.noob.join(', ')}')" style="margin:2px"><span>🥗 菜就多练 x${badges.noob.length}</span></div>`;
+        if (badges.bigloss.length > 0) html += `<div class="s-tag tag-noob" onclick="showBadgeTip('请拿走我的底裤', '月度', '${badges.bigloss.join(', ')}')" style="margin:2px"><span>💸 请拿走我的底裤 x${badges.bigloss.length}</span></div>`;
+        if (badges.fish.length > 0) html += `<div class="s-tag tag-fish" onclick="showBadgeTip('摸鱼王', '月度', '${badges.fish.join(', ')}')" style="margin:2px"><span>🐟 摸鱼王 x${badges.fish.length}</span></div>`;
         
         document.getElementById('pd-badge-container').innerHTML = html || '<span style="color:#cbd5e1;font-size:0.8rem">暂无月度荣誉</span>';
 
@@ -803,6 +839,19 @@
             showPlayerDetails(document.getElementById('pd-name').innerText);
         } catch (e) { showAlert("保存失败", e.message, "❌"); }
     }
+    
+    // v9.00: 保存子管理员密码
+    async function saveSubAdminPwd() {
+        const val = document.getElementById('subAdminPwdInput').value.trim();
+        if (!val) return showAlert("错误", "密码不能为空", "⚠️");
+        try {
+            await apiCall('/settings/sub-password', 'POST', { password: val });
+            showAlert("成功", "录入员密码已设置", "✅");
+            document.getElementById('subAdminPwdInput').value = '';
+        } catch (e) {
+            showAlert("失败", e.message, "❌");
+        }
+    }
 
     function onFilterChange(val) {
         anchorDate = dayjs();
@@ -819,12 +868,43 @@
     }
     function closeCustomAlert() { document.getElementById('customAlert').style.display = 'none'; }
 
+    // v9.00: 核心权限UI控制
     function checkAuthUI() {
-        const isAdmin = !!localStorage.getItem('mahjong_auth_token');
-        document.getElementById('loginArea').style.display = !isAdmin ? 'block' : 'none';
-        document.getElementById('adminControls').style.display = isAdmin ? 'flex' : 'none';
-        document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
-        document.getElementById('pd-admin-config').style.display = isAdmin ? 'block' : 'none';
+        const role = localStorage.getItem('mahjong_user_role'); // 'admin' | 'sub_admin' | null
+        
+        if (!role) {
+            // 游客模式
+            document.getElementById('loginArea').style.display = 'block';
+            document.getElementById('adminControls').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('pd-admin-config').style.display = 'none';
+            document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = 'none');
+            // 隐藏所有编辑删除按钮
+            document.body.classList.remove('role-admin', 'role-sub-admin');
+        } else {
+            // 已登录 (Admin 或 SubAdmin)
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('adminControls').style.display = 'flex';
+            document.getElementById('adminPanel').style.display = 'block'; // 显示面板
+            
+            // 显示角色徽章
+            const badge = document.getElementById('roleBadge');
+            badge.style.display = 'inline-block';
+            badge.innerText = role === 'admin' ? '👑 主管理员' : '📝 录入员';
+            
+            if (role === 'admin') {
+                document.body.classList.add('role-admin');
+                document.body.classList.remove('role-sub-admin');
+                document.getElementById('pd-admin-config').style.display = 'block';
+                document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = 'block'); // 显示别名设置等
+            } else {
+                document.body.classList.add('role-sub-admin');
+                document.body.classList.remove('role-admin');
+                document.getElementById('pd-admin-config').style.display = 'none'; // 子管理员不能改阈值
+                document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = 'none'); // 隐藏别名设置等
+            }
+        }
+        refreshUI(); // 重新渲染列表以更新删除按钮状态
     }
 
     function openLoginModal() {
@@ -839,14 +919,26 @@
         if (!input) return;
         try {
             const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': input } });
-            if (res.ok) { 
+            const data = await res.json();
+            
+            if (res.ok && data.success) { 
                 localStorage.setItem('mahjong_auth_token', input);
-                closeLoginModal(); checkAuthUI(); refreshUI();
-            } else { showAlert("登录失败", "密码错误", "❌"); }
+                localStorage.setItem('mahjong_user_role', data.role); // 存储角色
+                closeLoginModal(); 
+                checkAuthUI();
+                showAlert("登录成功", `欢迎回来, ${data.role === 'admin' ? '主管理员' : '录入员'}`, "👋");
+            } else { 
+                showAlert("登录失败", "密码错误", "❌"); 
+            }
         } catch (e) { showAlert("错误", "验证超时", "⚠️"); }
     }
 
-    function doLogout() { localStorage.removeItem('mahjong_auth_token'); checkAuthUI(); refreshUI(); }
+    function doLogout() { 
+        localStorage.removeItem('mahjong_auth_token'); 
+        localStorage.removeItem('mahjong_user_role');
+        checkAuthUI(); 
+        refreshUI(); 
+    }
 
     async function tryAction(actionCallback) {
         const savedToken = localStorage.getItem('mahjong_auth_token');
@@ -858,8 +950,16 @@
         const headers = { 'Content-Type': 'application/json' };
         const token = localStorage.getItem('mahjong_auth_token');
         if (token) headers['x-admin-token'] = token;
+        
         const res = await fetch(`/api${endpoint}`, { method, headers, body: body ? JSON.stringify(body) : null });
-        if (res.status === 401) { if(token) { localStorage.removeItem('mahjong_auth_token'); checkAuthUI(); throw new Error("AUTH_FAILED"); } }
+        
+        if (res.status === 401) { 
+            if(token) { 
+                doLogout();
+                throw new Error("AUTH_FAILED"); 
+            } 
+        }
+        // v8.15 改进
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") === -1) {
             const text = await res.text();
@@ -941,6 +1041,7 @@
         } catch (e) { if (e.message === 'AUTH_FAILED') showAlert("失败", "权限验证失败", "❌"); else showAlert("失败", e.message, "❌"); }
     }
 
+    // 🔥 v8.42: 修复 calculateStats，记录连胜达成日期
     function calculateStats(records) {
         const stats = {};
         const chronRecords = [...records].reverse();
@@ -950,22 +1051,30 @@
                 if (!stats[name]) stats[name] = { 
                     tempWinStreak: 0, tempLossStreak: 0, 
                     currentStreakType: 'none', currentStreakCount: 0, 
-                    maxWinStreak: 0, maxLossStreak: 0 
+                    maxWinStreak: 0, maxLossStreak: 0,
+                    maxWinStreakDate: null, maxLossStreakDate: null // 新增
                 };
                 const s = stats[name];
                 if (p.score > 0) {
                     s.tempWinStreak++; s.tempLossStreak = 0; s.currentStreakType = 'win'; s.currentStreakCount = s.tempWinStreak;
-                    if (s.tempWinStreak > s.maxWinStreak) s.maxWinStreak = s.tempWinStreak;
+                    if (s.tempWinStreak > s.maxWinStreak) {
+                        s.maxWinStreak = s.tempWinStreak;
+                        s.maxWinStreakDate = rec.play_date; // 记录日期
+                    }
                 } else {
                     s.tempLossStreak++; s.tempWinStreak = 0; s.currentStreakType = 'loss'; s.currentStreakCount = s.tempLossStreak;
-                    if (s.tempLossStreak > s.maxLossStreak) s.maxLossStreak = s.tempLossStreak;
+                    if (s.tempLossStreak > s.maxLossStreak) {
+                        s.maxLossStreak = s.tempLossStreak;
+                        s.maxLossStreakDate = rec.play_date; // 记录日期
+                    }
                 }
             });
         });
         return stats;
     }
 
-    function getBadgeHTML(type, count, isStatic = false) {
+    // 🔥 v8.42: 在 HTML 生成时注入 onclick，传递记录日期
+    function getBadgeHTML(type, count, isStatic = false, date = null) {
         if (count < 2) return '';
         let className = '', label = '';
         if (type === 'win') {
@@ -987,7 +1096,9 @@
             else { className = 'l-god'; label = `${count}连跪, 求求你们让他赢一把吧!`; }
         }
         const staticClass = isStatic ? 's-static' : '';
-        return `<div class="s-tag ${className} ${staticClass}" onclick="event.stopPropagation(); showBadgeTip('${label}')"><span>${label}</span></div>`;
+        const dateParam = date ? `'${dayjs(date).format('YYYY-MM-DD HH:mm')}'` : 'null';
+        // 注入 onclick
+        return `<div class="s-tag ${className} ${staticClass}" onclick="event.stopPropagation(); showBadgeTip('${label}', null, ${dateParam})"><span>${label}</span></div>`;
     }
 
     function refreshUI() { 
@@ -1031,17 +1142,19 @@
                 const realName = getRealName(p.name);
                 if (latestRecordMap[realName] === rec.id) {
                     const gActive = globalActiveStats[realName];
-                    if (gActive) streakTag = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
+                    if (gActive) streakTag = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false, rec.play_date);
                 }
 
                 pHTML += `<span class="p-tag" style="color:${color}">${escapeHtml(realName)} ${p.score>0?'+':''}${p.score} ${streakTag}</span>`;
             });
             const div = document.createElement('div'); div.className = 'record-item';
             
-            const isAdmin = !!localStorage.getItem('mahjong_auth_token');
-            const delBtn = isAdmin ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
-            // v8.17: 传入 Index 而不是 ID
-            const editBtn = isAdmin ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
+            // v9.00: 权限控制 (动态检查 role-admin 类名)
+            const role = localStorage.getItem('mahjong_user_role');
+            const canEdit = (role === 'admin'); // 只有主管理员能删除/编辑
+            
+            const delBtn = canEdit ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
+            const editBtn = canEdit ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
 
             let roomDisplay = '';
             if (rec.room_id === 'Manual') {
@@ -1055,6 +1168,7 @@
         });
     }
 
+    // 🔥 v8.42: 在渲染主表格时，传入连胜的日期
     function renderStats(records) {
         const el = document.getElementById('statsTable');
         const stats = {};
@@ -1104,22 +1218,26 @@
 
             let historyHtml = '<div style="display:flex;gap:4px;flex-wrap:wrap">';
             
-            const pStat = periodStats[p.name] || { maxWinStreak:0, maxLossStreak:0 };
-            if (pStat.maxWinStreak >= 2) historyHtml += getBadgeHTML('win', pStat.maxWinStreak, true);
-            if (pStat.maxLossStreak >= 2) historyHtml += getBadgeHTML('loss', pStat.maxLossStreak, true);
+            // 🔥 使用 periodStats 获取该时段内的最大连胜
+            const pStat = periodStats[p.name] || { maxWinStreak:0, maxLossStreak:0, maxWinStreakDate: null, maxLossStreakDate: null };
+            if (pStat.maxWinStreak >= 2) historyHtml += getBadgeHTML('win', pStat.maxWinStreak, true, pStat.maxWinStreakDate);
+            if (pStat.maxLossStreak >= 2) historyHtml += getBadgeHTML('loss', pStat.maxLossStreak, true, pStat.maxLossStreakDate);
             
+            // 🔥 v8.34: 主页战绩表 - 自动跟随时间过滤器 (不传 forcedPeriod)
+            // 这里的 extraData 传入当前时间显示的文本，如 "2025年1月"
+            const currentPeriodText = document.getElementById('dateDisplay').innerText;
             if (p.count > 0) {
-                if (counts.maxWR === 1 && Math.abs(winRateNum - maxWR) < 0.01) historyHtml += '<div class="s-tag tag-god" onclick="showBadgeTip(\'你是我的神\')"><span>🏆 你是我的神</span></div>';
-                if (counts.minWR === 1 && Math.abs(winRateNum - minWR) < 0.01) historyHtml += '<div class="s-tag tag-noob" onclick="showBadgeTip(\'菜就多练\')"><span>🥗 菜就多练</span></div>';
-                if (counts.maxPR === 1 && Math.abs(partRateNum - maxPR) < 0.01) historyHtml += '<div class="s-tag tag-worker" onclick="showBadgeTip(\'劳模\')"><span>👷 劳模</span></div>';
-                if (counts.minPR === 1 && Math.abs(partRateNum - minPR) < 0.01) historyHtml += '<div class="s-tag tag-fish" onclick="showBadgeTip(\'摸鱼王\')"><span>🐟 摸鱼王</span></div>';
+                if (counts.maxWR === 1 && Math.abs(winRateNum - maxWR) < 0.01) historyHtml += `<div class="s-tag tag-god" onclick="showBadgeTip('你是我的神', null, '${currentPeriodText}')"><span>🏆 你是我的神</span></div>`;
+                if (counts.minWR === 1 && Math.abs(winRateNum - minWR) < 0.01) historyHtml += `<div class="s-tag tag-noob" onclick="showBadgeTip('菜就多练', null, '${currentPeriodText}')"><span>🥗 菜就多练</span></div>`;
+                if (counts.maxPR === 1 && Math.abs(partRateNum - maxPR) < 0.01) historyHtml += `<div class="s-tag tag-worker" onclick="showBadgeTip('劳模', null, '${currentPeriodText}')"><span>👷 劳模</span></div>`;
+                if (counts.minPR === 1 && Math.abs(partRateNum - minPR) < 0.01) historyHtml += `<div class="s-tag tag-fish" onclick="showBadgeTip('摸鱼王', null, '${currentPeriodText}')"><span>🐟 摸鱼王</span></div>`;
             }
 
             historyHtml += '</div>';
             if(historyHtml === '<div style="display:flex;gap:4px;flex-wrap:wrap"></div>') historyHtml = '<span style="color:#cbd5e1">-</span>';
 
             const gActive = globalActiveStats[p.name] || { currentStreakType:'none', currentStreakCount:0 };
-            const activeBadge = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false);
+            const activeBadge = getBadgeHTML(gActive.currentStreakType, gActive.currentStreakCount, false); // Active badge usually implies "latest game", date logic handled internally if needed but usually just shows status
 
             tableHtml += `<tr>
                 <td style="font-weight:500">
@@ -1187,7 +1305,6 @@
         if (players.length === 0) return null;
         return { gameName, date, roomInfo: roomLine, roomId, players };
     }
-    
     function toggleAliasModal() { 
         if (localStorage.getItem('mahjong_guest_token')) { showAlert("权限不足", "游客模式无法修改别名", "⛔️"); return; }
         const m = document.getElementById('aliasModal'); m.style.display = m.style.display==='flex'?'none':'flex'; if(m.style.display==='flex') renderAliasInputs(); 
