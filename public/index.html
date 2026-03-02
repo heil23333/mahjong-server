@@ -176,9 +176,11 @@
         .box-fish { background: #f1f5f9; border-color: #cbd5e1; } .box-fish .honor-val { color: #475569; }
         .box-bigwin { background: #fef2f2; border-color: #fca5a5; } .box-bigwin .honor-val { color: #dc2626; }
         .box-bigloss { background: #f0fdfa; border-color: #5eead4; } .box-bigloss .honor-val { color: #0f766e; }
-        
+
         /* 仅 Super Admin 可见 */
         .super-admin-only { display: none; }
+        /* 管理员可见（主管理员和子管理员） */
+        .admin-only { display: none; }
     </style>
 </head>
 <body>
@@ -199,6 +201,8 @@
         
         <div class="btn-toolbar">
             <button class="btn" id="uploadBtn" onclick="tryAction(safeHandleImport)">📥 识别并导入</button>
+            <button class="btn super-admin-only" onclick="tryAction(() => document.getElementById('csvFileInput').click())">📥 CSV导入</button>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleCSVFileSelect(event)">
             <button class="btn" onclick="tryAction(openManualAddModal)">✍️ 手动录入</button>
             
             <button class="btn outline super-admin-only" onclick="tryAction(toggleAliasModal)">👥 设置别名</button>
@@ -227,6 +231,7 @@
                     <option value="year">📅 年</option>
                     <option value="all">♾️ 全</option>
                 </select>
+                <button class="btn admin-only" style="padding:4px 10px; font-size:0.85rem" onclick="tryAction(exportToCSV)">📤 导出</button>
             </div>
         </div>
         <div id="statsTable"></div>
@@ -405,6 +410,17 @@
         </div>
         <div class="modal-btns">
             <button class="btn" style="width:100%" onclick="closeCustomAlert()">我知道了</button>
+        </div>
+    </div>
+</div>
+
+<div id="csvImportModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:600px; max-height:80vh; display:flex; flex-direction:column">
+        <div class="modal-title">📥 CSV 导入预览</div>
+        <div id="csvImportContent" style="flex:1; overflow-y:auto; margin:10px 0"></div>
+        <div class="modal-btns">
+            <button class="btn" style="flex:1" onclick="confirmCSVImport()">确认导入</button>
+            <button class="btn outline" style="flex:1" onclick="closeCSVImportModal()">取消</button>
         </div>
     </div>
 </div>
@@ -879,6 +895,7 @@
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('pd-admin-config').style.display = 'none';
             document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             // 隐藏所有编辑删除按钮
             document.body.classList.remove('role-admin', 'role-sub-admin');
         } else {
@@ -903,6 +920,8 @@
                 document.getElementById('pd-admin-config').style.display = 'none'; // 子管理员不能改阈值
                 document.querySelectorAll('.super-admin-only').forEach(el => el.style.display = 'none'); // 隐藏别名设置等
             }
+            // 所有管理员都显示 admin-only 元素（导出按钮等）
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'inline-block');
         }
         refreshUI(); // 重新渲染列表以更新删除按钮状态
     }
@@ -1041,6 +1060,288 @@
         } catch (e) { if (e.message === 'AUTH_FAILED') showAlert("失败", "权限验证失败", "❌"); else showAlert("失败", e.message, "❌"); }
     }
 
+    // 导出CSV功能
+    function exportToCSV() {
+        const records = getFilteredRecords();
+        if (records.length === 0) return showAlert("提示", "当前筛选范围内没有数据", "⚠️");
+
+        // CSV表头
+        let csv = '\uFEFF时间,房间号,玩家1,分数1,玩家2,分数2,玩家3,分数3,玩家4,分数4\n';
+
+        records.forEach(rec => {
+            const date = dayjs(rec.play_date).format('YYYY-MM-DD HH:mm');
+            const roomId = rec.room_id === 'unknown' ? '' : (rec.room_id === 'Manual' ? '线下' : rec.room_id);
+
+            // 收集玩家数据（优先使用别名），过滤无效玩家
+            const players = rec.players
+                .filter(p => isValidPlayerName(getRealName(p.name)))
+                .map(p => ({
+                    name: getRealName(p.name),
+                    score: p.score
+                }));
+
+            // 跳过没有有效玩家的记录
+            if (players.length === 0) return;
+
+            // 构建行数据
+            const row = [
+                date,
+                roomId,
+                players[0]?.name || '',
+                players[0]?.score ?? '',
+                players[1]?.name || '',
+                players[1]?.score ?? '',
+                players[2]?.name || '',
+                players[2]?.score ?? '',
+                players[3]?.name || '',
+                players[3]?.score ?? ''
+            ];
+
+            // 转义CSV特殊字符
+            csv += row.map(cell => {
+                const str = String(cell);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            }).join(',') + '\n';
+        });
+
+        // 下载文件
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `战绩导出_${dayjs().format('YYYYMMDD_HHmmss')}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        showAlert("成功", `已导出 ${records.length} 条记录`, "✅");
+    }
+
+    function handleCSVFileSelect(event) {
+        const savedToken = localStorage.getItem('mahjong_auth_token');
+        if (!savedToken) return showAlert("权限不足", "请先登录管理员账号", "🔐");
+        handleCSVImport();
+    }
+
+    // 待导入的数据（用于确认弹窗）
+    let pendingCSVImport = { valid: [], duplicates: [], errors: [] };
+
+    // 导入CSV功能
+    async function handleCSVImport() {
+        const fileInput = document.getElementById('csvFileInput');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const role = localStorage.getItem('mahjong_user_role');
+        if (role !== 'admin') return showAlert("权限不足", "只有主管理员可以使用CSV导入", "🔐");
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n').filter(line => line.trim());
+
+            if (lines.length < 2) {
+                fileInput.value = '';
+                return showAlert("错误", "CSV文件内容为空或格式错误", "❌");
+            }
+
+            // 解析所有记录
+            const validRecords = [];
+            const duplicateRecords = [];
+            const errorRecords = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const lineNum = i + 1;
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // 简单解析CSV行（处理引号包裹的字段）
+                const values = [];
+                let current = '';
+                let inQuote = false;
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                        inQuote = !inQuote;
+                    } else if (char === ',' && !inQuote) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim());
+
+                const date = values[0];
+                const roomId = values[1];
+
+                // 解析玩家数据（每2个字段一组）
+                const players = [];
+                for (let j = 2; j + 1 < values.length; j += 2) {
+                    const name = values[j];
+                    const scoreStr = values[j + 1];
+                    const score = parseInt(scoreStr);
+
+                    // 严格验证：名字不能为空且不能包含特殊关键词，分数必须是有效整数
+                    const isValidName = name && name.length > 0 && !name.includes('积分') && !name.includes('ID') && !name.includes('：') && !name.includes(':');
+                    const isValidScore = !isNaN(score) && scoreStr && scoreStr.trim() !== '';
+
+                    if (isValidName && isValidScore) {
+                        players.push({ name, score });
+                    }
+                }
+
+                // 验证数据
+                if (!date || !roomId || players.length < 2) {
+                    errorRecords.push({ line: lineNum, content: line, reason: '数据不完整（缺少时间、房间号或有效玩家数据不足2人）' });
+                    continue;
+                }
+
+                // 检查日期格式是否有效
+                if (!dayjs(date).isValid()) {
+                    errorRecords.push({ line: lineNum, content: line, reason: '日期格式无效，请使用 YYYY-MM-DD HH:mm 格式' });
+                    continue;
+                }
+
+                // 检查是否重复（房间号或时间任一个相同就算重复）
+                const normalizedRoomId = roomId.trim();
+                const normalizedDate = dayjs(date).format('YYYY-MM-DD HH:mm');
+
+                const isDuplicate = globalRecords.some(r => {
+                    // 房间号相同
+                    const rRoomIdNorm = (r.room_id === 'Manual' ? '线下' : r.room_id || '').trim();
+                    const roomMatch = rRoomIdNorm === normalizedRoomId;
+
+                    // 时间相同（统一格式后比较）
+                    const rDateNorm = dayjs(r.play_date).format('YYYY-MM-DD HH:mm');
+                    const timeMatch = rDateNorm === normalizedDate;
+
+                    return roomMatch || timeMatch;
+                });
+
+                const record = {
+                    game_name: '血战麻将',
+                    play_date: dayjs(date).format('YYYY-MM-DD HH:mm'),
+                    room_info: '',
+                    room_id: normalizedRoomId,
+                    players: players
+                };
+
+                if (isDuplicate) {
+                    duplicateRecords.push({ line: lineNum, content: line, reason: '该战绩已存在' });
+                } else {
+                    validRecords.push(record);
+                }
+            }
+
+            // 保存待导入数据
+            pendingCSVImport = { valid: validRecords, duplicates: duplicateRecords, errors: errorRecords };
+
+            // 显示确认弹窗
+            showCSVImportPreview();
+
+            fileInput.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    // 显示CSV导入预览弹窗
+    function showCSVImportPreview() {
+        const content = document.getElementById('csvImportContent');
+        let html = '';
+
+        // 统计
+        html += `<div style="margin-bottom:15px; padding:10px; background:#f8fafc; border-radius:8px">
+            <div style="font-weight:600; margin-bottom:8px">📊 导入统计</div>
+            <div style="display:flex; gap:15px; flex-wrap:wrap">
+                <span style="color:#10b981">✅ 有效数据: ${pendingCSVImport.valid.length} 条</span>
+                <span style="color:#f59e0b">⚠️ 重复数据: ${pendingCSVImport.duplicates.length} 条</span>
+                <span style="color:#ef4444">❌ 错误数据: ${pendingCSVImport.errors.length} 条</span>
+            </div>
+        </div>`;
+
+        // 有效数据预览
+        if (pendingCSVImport.valid.length > 0) {
+            html += `<div style="margin-bottom:15px">
+                <div style="font-weight:600; margin-bottom:8px; color:#10b981">✅ 有效数据（将导入）</div>
+                <div style="max-height:150px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px">
+                    <table style="width:100%; font-size:0.85rem; border-collapse:collapse">
+                        <tr style="background:#f1f5f9"><th style="padding:6px; text-align:left">时间</th><th style="padding:6px; text-align:left">房间</th><th style="padding:6px; text-align:left">玩家</th></tr>`;
+            pendingCSVImport.valid.slice(0, 10).forEach(rec => {
+                const playerStr = rec.players.map(p => `${getRealName(p.name)}:${p.score}`).join(', ');
+                const displayDate = dayjs(rec.play_date).format('YYYY-MM-DD HH:mm');
+                html += `<tr><td style="padding:4px 6px">${displayDate}</td><td style="padding:4px 6px">${rec.room_id}</td><td style="padding:4px 6px">${playerStr}</td></tr>`;
+            });
+            if (pendingCSVImport.valid.length > 10) {
+                html += `<tr><td colspan="3" style="padding:4px 6px; text-align:center; color:#64748b">... 还有 ${pendingCSVImport.valid.length - 10} 条</td></tr>`;
+            }
+            html += `</table></div></div>`;
+        }
+
+        // 重复数据
+        if (pendingCSVImport.duplicates.length > 0) {
+            html += `<div style="margin-bottom:15px">
+                <div style="font-weight:600; margin-bottom:8px; color:#f59e0b">⚠️ 重复数据（跳过）</div>
+                <div style="max-height:120px; overflow-y:auto; border:1px solid #fed7aa; border-radius:6px; background:#fffbeb; font-size:0.8rem">`;
+            pendingCSVImport.duplicates.slice(0, 5).forEach(dup => {
+                html += `<div style="padding:4px 8px; border-bottom:1px dashed #fed7aa">第${dup.line}行: ${dup.reason}</div>`;
+            });
+            if (pendingCSVImport.duplicates.length > 5) {
+                html += `<div style="padding:4px 8px; text-align:center; color:#64748b">... 还有 ${pendingCSVImport.duplicates.length - 5} 条</div>`;
+            }
+            html += `</div></div>`;
+        }
+
+        // 错误数据
+        if (pendingCSVImport.errors.length > 0) {
+            html += `<div style="margin-bottom:15px">
+                <div style="font-weight:600; margin-bottom:8px; color:#ef4444">❌ 错误数据（跳过）</div>
+                <div style="max-height:120px; overflow-y:auto; border:1px solid #fecaca; border-radius:6px; background:#fef2f2; font-size:0.8rem">`;
+            pendingCSVImport.errors.slice(0, 5).forEach(err => {
+                html += `<div style="padding:4px 8px; border-bottom:1px dashed #fecaca">第${err.line}行: ${err.reason}</div>`;
+            });
+            if (pendingCSVImport.errors.length > 5) {
+                html += `<div style="padding:4px 8px; text-align:center; color:#64748b">... 还有 ${pendingCSVImport.errors.length - 5} 条</div>`;
+            }
+            html += `</div></div>`;
+        }
+
+        // 无有效数据
+        if (pendingCSVImport.valid.length === 0) {
+            html += `<div style="text-align:center; padding:20px; color:#64748b">没有有效数据可导入</div>`;
+        }
+
+        content.innerHTML = html;
+        document.getElementById('csvImportModal').style.display = 'flex';
+    }
+
+    // 确认导入
+    async function confirmCSVImport() {
+        if (pendingCSVImport.valid.length === 0) {
+            closeCSVImportModal();
+            return showAlert("提示", "没有有效数据可导入", "⚠️");
+        }
+
+        try {
+            await apiCall('/records/batch', 'POST', { records: pendingCSVImport.valid });
+            closeCSVImportModal();
+            await loadRecords();
+            refreshUI();
+            showAlert("成功", `已导入 ${pendingCSVImport.valid.length} 条记录`, "✅");
+        } catch (err) {
+            if (err.message === 'AUTH_FAILED') showAlert("失败", "权限验证失败", "❌");
+            else showAlert("失败", err.message, "❌");
+        }
+    }
+
+    // 关闭导入弹窗
+    function closeCSVImportModal() {
+        document.getElementById('csvImportModal').style.display = 'none';
+        pendingCSVImport = { valid: [], duplicates: [], errors: [] };
+    }
+
     // 🔥 v8.42: 修复 calculateStats，记录连胜达成日期
     function calculateStats(records) {
         const stats = {};
@@ -1119,12 +1420,12 @@
         if (currentPage > total) currentPage = total; if (currentPage < 1) currentPage = 1;
         document.getElementById('pageInput').value = currentPage;
         document.getElementById('totalPagesText').innerText = total;
-        
-        const latestRecordMap = {}; 
+
+        const latestRecordMap = {};
         for (const rec of globalRecords) {
             for (const p of rec.players) {
                 const name = getRealName(p.name);
-                if (!latestRecordMap[name]) {
+                if (isValidPlayerName(name) && !latestRecordMap[name]) {
                     latestRecordMap[name] = rec.id;
                 }
             }
@@ -1132,13 +1433,17 @@
 
         const start = (currentPage - 1) * pageSize;
         records.slice(start, start + pageSize).forEach(rec => {
+            // 过滤掉无效的玩家数据
+            const validPlayers = rec.players.filter(p => isValidPlayerName(getRealName(p.name)));
+            if (validPlayers.length === 0) return; // 跳过没有有效玩家的记录
+
             const globalIndex = globalRecords.indexOf(rec);
 
             let pHTML = '';
-            rec.players.forEach(p => {
+            validPlayers.forEach(p => {
                 const color = p.score > 0 ? '#ef4444' : '#10b981';
                 let streakTag = '';
-                
+
                 const realName = getRealName(p.name);
                 if (latestRecordMap[realName] === rec.id) {
                     const gActive = globalActiveStats[realName];
@@ -1148,11 +1453,11 @@
                 pHTML += `<span class="p-tag" style="color:${color}">${escapeHtml(realName)} ${p.score>0?'+':''}${p.score} ${streakTag}</span>`;
             });
             const div = document.createElement('div'); div.className = 'record-item';
-            
+
             // v9.00: 权限控制 (动态检查 role-admin 类名)
             const role = localStorage.getItem('mahjong_user_role');
             const canEdit = (role === 'admin'); // 只有主管理员能删除/编辑
-            
+
             const delBtn = canEdit ? `<button class="del-record-btn action-btn del-btn-icon" onclick="tryAction(() => deleteRecord('${rec.id}'))" title="删除">🗑️</button>` : '';
             const editBtn = canEdit ? `<button class="action-btn edit-btn" onclick="tryAction(() => openEditRecord(${globalIndex}))" title="编辑">✏️</button>` : '';
 
@@ -1166,6 +1471,14 @@
             div.innerHTML = `<div class="record-meta"><span>${dayjs(rec.play_date).format('MM-DD HH:mm')}</span><div style="display:flex;align-items:center">${roomDisplay}${editBtn}${delBtn}</div></div><div class="player-tags">${pHTML}</div>`;
             el.appendChild(div);
         });
+    }
+
+    // 检查玩家名字是否有效
+    function isValidPlayerName(name) {
+        if (!name || name.trim() === '') return false;
+        // 排除包含特殊关键词的名字（通常是解析错误的数据）
+        if (name.includes('ID') || name.includes('积分') || name.includes('：') || name.includes(':') || name.includes('生涯')) return false;
+        return true;
     }
 
     // 🔥 v8.42: 在渲染主表格时，传入连胜的日期

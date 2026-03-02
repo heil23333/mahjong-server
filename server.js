@@ -116,14 +116,16 @@ app.post('/api/records', authMiddleware, async (req, res) => {
 
         if (timeDiff < COOLDOWN) {
             const remainingMin = Math.ceil((COOLDOWN - timeDiff) / 60000);
-            return res.status(429).json({ 
-                error: `录入太频繁！请等待 ${remainingMin} 分钟后再试。` 
+            return res.status(429).json({
+                error: `录入太频繁！请等待 ${remainingMin} 分钟后再试。`
             });
         }
     }
 
     try {
-        const { error } = await supabase.from('records').insert(req.body);
+        // 支持批量导入（数组）或单条导入（对象）
+        const data = Array.isArray(req.body) ? req.body : [req.body];
+        const { error } = await supabase.from('records').insert(data);
         if (error) {
             if (error.code === '23505') return res.status(409).json({ error: '重复数据' });
             throw error;
@@ -134,8 +136,27 @@ app.post('/api/records', authMiddleware, async (req, res) => {
             LocalCache.lastSubActionTime = Date.now();
         }
         await LocalCache.sync(true);
-        
-        res.json({ success: true });
+
+        res.json({ success: true, imported: data.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 批量导入API（仅主管理员可用）
+app.post('/api/records/batch', authMiddleware, requireSuperAdmin, async (req, res) => {
+    try {
+        const { records } = req.body;
+        if (!Array.isArray(records) || records.length === 0) {
+            return res.status(400).json({ error: '无效的数据格式' });
+        }
+
+        const { error } = await supabase.from('records').insert(records);
+        if (error) {
+            if (error.code === '23505') return res.status(409).json({ error: '部分数据重复' });
+            throw error;
+        }
+
+        await LocalCache.sync(true);
+        res.json({ success: true, imported: records.length });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
